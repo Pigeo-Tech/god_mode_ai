@@ -1,0 +1,11 @@
+region            = "us-east-1"
+project           = "god-mode-ai"
+environment       = "prod"
+desired_count     = 2
+db_username       = "godmode"
+db_password       = "REPLACE_WITH_STRONG_PASSWORD"
+jwt_secret        = "REPLACE_WITH_RANDOM_64_CHARS"
+openai_api_key    = ""
+anthropic_api_key = ""
+# domain_name     = "api.agni.example.com"
+# route53_zone_id = "Z0123456789ABC"

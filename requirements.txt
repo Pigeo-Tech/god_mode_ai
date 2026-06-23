@@ -1,0 +1,19 @@
+# Pinned in later phases. Core runtime dependencies for the backend.
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy[asyncio]
+alembic
+asyncpg
+redis
+qdrant-client
+httpx
+python-jose[cryptography]
+passlib[bcrypt]
+celery
+prometheus-client
+structlog
+gunicorn
+psycopg[binary]
+email-validator

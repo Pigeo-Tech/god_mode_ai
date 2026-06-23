@@ -1,0 +1,7 @@
+# Caddy gives free automatic HTTPS (Let's Encrypt) when DOMAIN is a real hostname.
+# With no domain, DOMAIN defaults to ":80" and it serves plain HTTP on the server IP.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy api:8000
+	# WebSocket (/v1/stream) is proxied automatically by Caddy.
+}

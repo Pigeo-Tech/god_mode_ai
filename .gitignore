@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+mobile/flutter/build/
+mobile/flutter/.dart_tool/
+mobile/flutter/android/
+mobile/flutter/ios/
+node_modules/

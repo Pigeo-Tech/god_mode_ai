@@ -1,0 +1,68 @@
+# Local development stack: API + Postgres + Redis + Qdrant.
+# Usage:  docker compose -f docker/docker-compose.yml up --build
+name: god-mode-ai-dev
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: god-mode-ai:dev
+    environment:
+      APP_ENV: development
+      USE_IN_MEMORY_BACKENDS: "false"
+      RUN_MIGRATIONS: "false"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: god_mode_ai
+      POSTGRES_USER: godmode
+      POSTGRES_PASSWORD: change-me
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      JWT_SECRET: dev-secret
+    command: ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ../backend:/app/backend:ro     # live reload of source
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      qdrant: { condition: service_started }
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: god_mode_ai
+      POSTGRES_USER: godmode
+      POSTGRES_PASSWORD: change-me
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U godmode -d god_mode_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrantdata:/qdrant/storage
+
+volumes:
+  pgdata:
+  qdrantdata:

@@ -1,0 +1,40 @@
+{
+  "family": "god-mode-ai",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/god-mode-ai-task-exec",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/god-mode-ai-task",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/god-mode-ai:latest",
+      "essential": true,
+      "portMappings": [{ "containerPort": 8000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "APP_ENV", "value": "prod" },
+        { "name": "USE_IN_MEMORY_BACKENDS", "value": "false" },
+        { "name": "RUN_MIGRATIONS", "value": "true" },
+        { "name": "POSTGRES_HOST", "value": "REPLACED_BY_TERRAFORM" },
+        { "name": "POSTGRES_PORT", "value": "5432" },
+        { "name": "POSTGRES_DB", "value": "god_mode_ai" },
+        { "name": "POSTGRES_USER", "value": "godmode" },
+        { "name": "REDIS_URL", "value": "redis://REPLACED:6379/0" },
+        { "name": "QDRANT_URL", "value": "http://qdrant.god-mode.local:6333" }
+      ],
+      "secrets": [
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:god-mode-ai/prod/app:JWT_SECRET::" },
+        { "name": "POSTGRES_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:god-mode-ai/prod/app:POSTGRES_PASSWORD::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/god-mode-ai",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    }
+  ]
+}
