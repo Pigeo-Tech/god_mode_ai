@@ -32,7 +32,10 @@ class Aggregator:
                 "error": task.error,
             })
 
-        summary = self._summarize(objective, breakdown, completed, failed)
+        answers = [str(t.result["answer"]) for t in ordered
+                   if isinstance(t.result, dict) and t.result.get("answer")]
+        summary = "\n\n".join(answers) if answers else \
+            self._summarize(objective, breakdown, completed, failed)
         return {
             "objective": objective,
             "summary": summary,

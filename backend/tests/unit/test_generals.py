@@ -59,7 +59,8 @@ async def test_router_falls_back_to_all_when_no_keyword():
     gen = KnowledgeGeneral("knowledge", deps)
     await gen.initialize()
     resp = await gen.run(AgentRequest(objective="tell me something interesting"))
-    assert resp.result["soldiers_used"] == len(KnowledgeGeneral.soldiers)
+    assert resp.result["soldiers_used"] == 1  # collapses to a single research answer
+    assert resp.result["results"][0]["agent_id"] == "research"
 
 
 # --------------------------------------------------------------------------- registry

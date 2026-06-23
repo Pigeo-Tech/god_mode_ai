@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.soldiers.common import MemorySoldier
+from backend.soldiers.common import LlmSoldier, MemorySoldier
 
 
 @dataclass
@@ -15,14 +15,14 @@ class SoldierSpec:
 
 
 SOLDIER_CATALOG: list[SoldierSpec] = [
-    SoldierSpec("internet", "knowledge"),
-    SoldierSpec("search", "knowledge"),
-    SoldierSpec("research", "knowledge"),
-    SoldierSpec("news", "knowledge"),
+    SoldierSpec("internet", "knowledge", cls=LlmSoldier),
+    SoldierSpec("search", "knowledge", cls=LlmSoldier),
+    SoldierSpec("research", "knowledge", cls=LlmSoldier),
+    SoldierSpec("news", "knowledge", cls=LlmSoldier),
     SoldierSpec("weather", "knowledge"),
     SoldierSpec("maps", "knowledge"),
     SoldierSpec("translation", "knowledge"),
-    SoldierSpec("knowledge_graph", "knowledge"),
+    SoldierSpec("knowledge_graph", "knowledge", cls=LlmSoldier),
     SoldierSpec("calendar", "planning"),
     SoldierSpec("reminder", "planning"),
     SoldierSpec("task_planning", "planning"),

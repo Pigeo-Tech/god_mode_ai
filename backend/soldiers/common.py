@@ -35,3 +35,25 @@ class MemorySoldier(BaseSoldier):
         memory_id = await self.deps.memory.remember(request.objective, scope="knowledge",
                                                     owner=owner)
         return self._ok(request, {"action": "remember", "stored": memory_id})
+
+
+class LlmSoldier(BaseSoldier):
+    """Answers the objective with an LLM: OpenAI/Anthropic if a key is configured,
+    otherwise the built-in local model. Returns {"answer": text}."""
+
+    tool_name = None
+
+    async def work(self, request: AgentRequest) -> AgentResponse:
+        tools = self.deps.tools
+        available = tools.list() if tools is not None else []
+        tool = (
+            "llm.openai" if "llm.openai" in available
+            else "llm.anthropic" if "llm.anthropic" in available
+            else "llm.local"
+        )
+        result = await tools.invoke(tool, {"prompt": request.objective}, agent_id=self.agent_id)
+        return self._ok(request, {
+            "answer": result.get("completion", ""),
+            "model": result.get("model"),
+            "provider": result.get("provider"),
+        })
