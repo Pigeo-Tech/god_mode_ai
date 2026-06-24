@@ -12,6 +12,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.deps import get_principal, require_scope  # noqa: F401 (re-exported for routes)
 from backend.api.middleware.correlation import CorrelationIdMiddleware
@@ -43,6 +44,14 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="GOD MODE AI", version="0.9.0", lifespan=lifespan)
+    # CORS so the web Admin dashboard (browser) can call the API. Bearer-token auth, no cookies.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=False,
+    )
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(CorrelationIdMiddleware)
     for module in (system_routes, auth_routes, chat_routes, agents_routes):
