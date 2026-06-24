@@ -16,6 +16,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2  # JWT token storage
   shared_preferences: ^2.2.3      # offline cache
   firebase_messaging: ^15.0.0     # push notifications
+  url_launcher: ^6.3.0            # open Play Store / YouTube deep links
   intl: ^0.19.0
 
 dev_dependencies:

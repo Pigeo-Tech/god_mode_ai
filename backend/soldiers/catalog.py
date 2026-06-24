@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.soldiers.common import LlmSoldier, MemorySoldier
+from backend.soldiers.super_soldier import ResearchSoldier
 
 
 @dataclass
@@ -17,7 +18,7 @@ class SoldierSpec:
 SOLDIER_CATALOG: list[SoldierSpec] = [
     SoldierSpec("internet", "knowledge", cls=LlmSoldier),
     SoldierSpec("search", "knowledge", cls=LlmSoldier),
-    SoldierSpec("research", "knowledge", cls=LlmSoldier),
+    SoldierSpec("research", "knowledge", cls=ResearchSoldier),
     SoldierSpec("news", "knowledge", cls=LlmSoldier),
     SoldierSpec("weather", "knowledge"),
     SoldierSpec("maps", "knowledge"),
@@ -51,7 +52,7 @@ SOLDIER_CATALOG: list[SoldierSpec] = [
     SoldierSpec("image", "media"),
     SoldierSpec("video", "media"),
     SoldierSpec("audio", "media"),
-    SoldierSpec("music", "media"),
+    SoldierSpec("music", "media", cls=LlmSoldier),
     SoldierSpec("speech", "media"),
     SoldierSpec("vision", "media"),
     SoldierSpec("camera", "media"),
@@ -86,7 +87,7 @@ SOLDIER_CATALOG: list[SoldierSpec] = [
     SoldierSpec("api_automation", "automation"),
     SoldierSpec("notification_automation", "automation"),
     SoldierSpec("device_control", "device"),
-    SoldierSpec("app_management", "device"),
+    SoldierSpec("app_management", "device", cls=LlmSoldier),
     SoldierSpec("settings", "device"),
     SoldierSpec("flashlight", "device"),
     SoldierSpec("volume", "device"),
