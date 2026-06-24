@@ -34,7 +34,8 @@ GENERAL_SPECS = {
             "task_planning",
             "project_planning",
             "route_planning",
-            "goal_planning"
+            "goal_planning",
+            "movie_planner"
         ],
         "keywords": {
             "calendar": "calendar",
@@ -43,7 +44,14 @@ GENERAL_SPECS = {
             "planning": "task_planning",
             "project": "project_planning",
             "route": "route_planning",
-            "goal": "goal_planning"
+            "goal": "goal_planning",
+            "movie": "movie_planner",
+            "film": "movie_planner",
+            "cinema": "movie_planner",
+            "ticket": "movie_planner",
+            "showtime": "movie_planner",
+            "watchlist": "movie_planner",
+            "trailer": "movie_planner"
         }
     },
     "execution": {

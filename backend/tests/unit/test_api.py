@@ -28,7 +28,7 @@ async def test_service_stream_emits_lifecycle_events():
 async def test_service_lists_agents_and_tools():
     service = await ApiService.create()
     agents = service.list_agents()
-    assert agents["count"] == 160  # 145 soldiers + 15 generals live
+    assert agents["count"] == 161  # 146 soldiers + 15 generals live
     tools = service.list_tools()
     assert "llm" in tools["by_kind"]            # LLM provider tools registered
     assert "llm.local" in tools["all"]

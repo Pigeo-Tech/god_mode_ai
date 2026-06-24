@@ -369,7 +369,7 @@ class _ExecutivePageState extends State<ExecutivePage> {
   Map<String, dynamic>? _health;
   String? _error;
   Timer? _timer;
-  final List<double> _spark = List.filled(28, 0.3);
+  final List<double> _spark = List<double>.generate(28, (_) => 0.3);
 
   @override
   void initState() {

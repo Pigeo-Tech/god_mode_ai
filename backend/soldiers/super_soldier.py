@@ -14,8 +14,10 @@ below the profile threshold — so ordinary requests cost the same as before.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from time import perf_counter
+from urllib.parse import quote_plus
 
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
@@ -260,3 +262,94 @@ _DEFAULT_PROFILE = ExpertiseProfile("general",
 def profile_for(group: str) -> ExpertiseProfile:
     """Return the expertise profile for a soldier's domain group."""
     return DOMAIN_PROFILES.get(group, _DEFAULT_PROFILE)
+
+
+# --------------------------------------------------------------------------- Movie Planner
+class MoviePlannerSoldier(SuperSoldier):
+    """Manages the movie lifecycle: discovery, recommendations, watchlist, and booking PLANS.
+
+    Booking is a Level-2 action (mandatory approval): the soldier prepares the booking and returns
+    an approval request + a deep link to the booking page — it NEVER pays. The user confirms seats
+    and payment on the merchant themselves. Discovery/recommendations use the LLM (and become live
+    only once a web-search tool is added).
+    """
+
+    profile = ExpertiseProfile(
+        domain="movie",
+        system_prompt=(
+            "You are a friendly movie & entertainment expert. Recommend films, summarise "
+            "plots/cast, and help plan viewing. Be concise. If you lack live data (today's "
+            "showtimes or brand-new releases), say so in one line."),
+    )
+
+    _BOOK = ("book", "booking", "ticket", "tickets", "reserve", "seat", "seats", "buy", "pay")
+
+    async def work(self, request: AgentRequest) -> AgentResponse:
+        low = (request.objective or "").lower()
+        if any(re.search(r"\b" + k + r"\b", low) for k in self._BOOK):
+            return self._booking_approval(request)
+        # discovery / recommendation / watchlist -> normal expert pipeline
+        return await super().work(request)
+
+    def _booking_approval(self, request: AgentRequest) -> AgentResponse:
+        obj = request.objective or ""
+        title = self._extract_title(obj)
+        seats = self._extract_seats(obj)
+        per_seat = 200  # typical ticket estimate (INR); real price needs live data
+        est = seats * per_seat
+        url = "https://in.bookmyshow.com/explore/movies?q=" + quote_plus(title)
+        summary = (
+            "Movie Ticket Booking — approval needed\n"
+            "Movie: " + title + "\nSeats: " + str(seats) +
+            "\nEstimated: ~Rs " + str(est) + " (approx; live price unknown without web access)\n"
+            "I won't pay on your behalf. Tap to open the booking page, pick the real showtime and "
+            "seats, then confirm payment yourself.")
+        action = {"type": "open_url", "url": url, "label": "Open booking page"}
+        return self._ok(request, {
+            "answer": summary,
+            "findings": summary,
+            "domain": "movie",
+            "provider": "policy",
+            "model": None,
+            "confidence": 0.9,
+            "action": action,
+            "requires_approval": True,
+            "approval_level": 2,
+            "approval": {
+                "title": "Movie Ticket Booking",
+                "movie": title,
+                "seats": seats,
+                "estimated_amount": est,
+                "currency": "INR",
+            },
+            "plan": ["discover", "theater_search", "prepare_booking", "await_approval"],
+            "stages": {"recalled": 0, "recovered": False, "validated": True},
+        })
+
+    @staticmethod
+    def _extract_seats(text: str) -> int:
+        low = text.lower()
+        m = re.search(r"(\d+)\s*(?:ticket|tickets|seat|seats|adult|person|people)", low)
+        if m:
+            return max(1, int(m.group(1)))
+        words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+        for w, n in words.items():
+            if re.search(r"\b" + w + r"\b", low):
+                return n
+        return 2
+
+    @staticmethod
+    def _extract_title(text: str) -> str:
+        low = text.lower()
+        m = re.search(r"book\s+(.*?)\s+(?:movie|ticket|tickets)\b", low)
+        if m and m.group(1).strip():
+            return m.group(1).strip().title()
+        stop = {
+            "book", "booking", "movie", "movies", "ticket", "tickets", "near", "nearby", "by",
+            "my", "location", "for", "tomorrow", "today", "tonight", "seat", "seats", "at",
+            "pm", "am", "the", "a", "an", "please", "show", "me", "in", "and", "after", "two",
+            "one", "three", "reserve", "buy", "pay",
+        }
+        words = [w for w in re.findall(r"[a-z0-9]+", low)
+                 if w not in stop and not w.isdigit()]
+        return " ".join(words[:4]).title() if words else "the movie"

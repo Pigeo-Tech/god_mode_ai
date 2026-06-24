@@ -18,8 +18,8 @@ from backend.schemas.serde import request_to_dict
 # --------------------------------------------------------------------------- catalogue
 def test_catalogue_has_41_unique_soldiers():
     names = [s.name for s in SOLDIER_CATALOG]
-    assert len(names) == 145
-    assert len(set(names)) == 145
+    assert len(names) == 146
+    assert len(set(names)) == 146
 
 
 def test_every_general_roster_soldier_exists_in_catalogue():
@@ -33,10 +33,10 @@ def test_every_general_roster_soldier_exists_in_catalogue():
 async def test_bootstrap_soldiers_starts_all_live_with_tools():
     c = Container()
     deps, names = await bootstrap_soldiers(c)
-    assert len(names) == 145
-    assert len(c.agents.list_live()) == len(names) == 145
+    assert len(names) == 146
+    assert len(c.agents.list_live()) == len(names) == 146
     assert set(c.tools.list()) == set(TOOL_NAMES)
-    assert len(TOOL_NAMES) == 144  # only the custom memory soldier has no tool
+    assert len(TOOL_NAMES) == 144  # movie_planner + memory soldiers have no registry tool
 
 
 # --------------------------------------------------------------------------- behaviour

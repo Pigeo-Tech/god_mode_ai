@@ -31,6 +31,8 @@ def _default_planner() -> Planner:
         "search": "knowledge", "research": "knowledge", "weather": "knowledge",
         "news": "knowledge", "look up": "knowledge",
         "plan": "planning", "schedule": "planning", "organize": "planning",
+        "movie": "planning", "film": "planning", "cinema": "planning", "ticket": "planning",
+        "showtime": "planning", "watchlist": "planning", "trailer": "planning",
         "run": "execution", "execute": "execution", "deploy": "execution",
         "remember": "memory", "recall": "memory",
         "code": "coding", "program": "coding", "bug": "coding", "git": "coding",
