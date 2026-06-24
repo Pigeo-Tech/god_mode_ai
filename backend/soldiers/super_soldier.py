@@ -43,17 +43,33 @@ class SuperSoldier(BaseSoldier):
         system_prompt="You are a precise, helpful expert. Answer clearly and completely.",
     )
 
+    #: concise voice used when the request is actionable (open/play/install) — the user wants
+    #: the action to happen, not an essay.
+    ACTION_PROMPT = (
+        "You are a friendly assistant. The user wants you to open/play/launch something and the "
+        "app will perform it automatically. Reply in ONE short, upbeat sentence confirming it — "
+        "no steps, no lists, no explanations.")
+
+    def __init__(self, agent_id, deps=None, profile: ExpertiseProfile | None = None) -> None:
+        super().__init__(agent_id, deps)
+        if profile is not None:
+            self.profile = profile
+
     async def work(self, request: AgentRequest) -> AgentResponse:
         t0 = perf_counter()
         intent = self._understand(request)
         plan = self._plan(intent)
         recalled = await self._recall(request)
 
-        raw = await self._reason(request, recalled)
+        # Actionable request? Answer concisely (one line) and let the app auto-open the action.
+        url, label = build_action_link(request.objective)
+        override = self.ACTION_PROMPT if url else ""
+
+        raw = await self._reason(request, recalled, system_override=override)
         verdict = self._validate(raw)
 
         recovered = False
-        if not verdict["ok"] and self.profile.enable_recovery:
+        if not verdict["ok"] and self.profile.enable_recovery and not url:
             retry = await self._recover(request, recalled)
             v2 = self._validate(retry)
             if v2["confidence"] >= verdict["confidence"]:
@@ -61,9 +77,7 @@ class SuperSoldier(BaseSoldier):
 
         answer = (raw.get("completion") or "").strip()
         action = None
-        url, label = build_action_link(request.objective)
         if url:
-            answer = (answer + "  " + label + ": " + url).strip()
             action = {"type": "open_url", "url": url, "label": label}
 
         await self._learn(request, verdict, recovered)
@@ -115,18 +129,21 @@ class SuperSoldier(BaseSoldier):
                 return model
         return "llm.local"
 
-    def _compose_prompt(self, request: AgentRequest, recalled: list, emphasis: str = "") -> str:
+    def _compose_prompt(self, request: AgentRequest, recalled: list, emphasis: str = "",
+                        system_override: str = "") -> str:
+        system = system_override or self.profile.system_prompt
         notes = ("\n".join("- " + str(h.get("content", "")) for h in recalled[:3])
                  if recalled else "(none)")
         return (
-            f"{self.profile.system_prompt}\n\n"
+            f"{system}\n\n"
             f"Relevant past notes:\n{notes}\n\n"
             f"User request: {request.objective}\n{emphasis}"
         ).strip()
 
-    async def _reason(self, request: AgentRequest, recalled: list, emphasis: str = "") -> dict:
+    async def _reason(self, request: AgentRequest, recalled: list, emphasis: str = "",
+                      system_override: str = "") -> dict:
         tool = self._pick_model()
-        prompt = self._compose_prompt(request, recalled, emphasis)
+        prompt = self._compose_prompt(request, recalled, emphasis, system_override)
         return await self.deps.tools.invoke(tool, {"prompt": prompt}, agent_id=self.agent_id)
 
     def _validate(self, raw: dict) -> dict:
@@ -183,3 +200,63 @@ class ResearchSoldier(SuperSoldier):
             "contradictions, and finish with a one-line confidence note."),
         min_chars=20,
     )
+
+
+# --------------------------------------------------------------------------- domain experts
+# One ExpertiseProfile per General's domain. Every soldier in a domain inherits its profile,
+# turning all 145 soldiers into specialised experts that share the single pipeline above.
+DOMAIN_PROFILES: dict[str, ExpertiseProfile] = {
+    "knowledge": ExpertiseProfile("knowledge",
+        "You are a research and world-knowledge expert. Give accurate, well-structured answers "
+        "with key facts and a brief confidence note."),
+    "planning": ExpertiseProfile("planning",
+        "You are a planning strategist. Break the goal into clear, ordered, actionable steps "
+        "with dependencies and a realistic schedule."),
+    "execution": ExpertiseProfile("execution",
+        "You are an execution and tooling expert. Explain precisely how to run the task and "
+        "what tools/commands achieve it, safely and reliably."),
+    "memory": ExpertiseProfile("memory",
+        "You are a memory and context expert. Recall, organise, and summarise relevant "
+        "information clearly and concisely."),
+    "coding": ExpertiseProfile("coding",
+        "You are a senior software engineer. Produce correct, secure, well-documented code or "
+        "precise debugging guidance, with brief reasoning."),
+    "media": ExpertiseProfile("media",
+        "You are a media expert (image, video, audio, music). Give practical, creative, and "
+        "concise guidance or recommendations."),
+    "finance": ExpertiseProfile("finance",
+        "You are a finance analyst. Give clear, careful, numerate answers. Note that this is "
+        "information, not licensed financial advice."),
+    "communication": ExpertiseProfile("communication",
+        "You are a communication expert. Draft or analyse messages with the right tone, clarity, "
+        "and brevity for the audience."),
+    "system": ExpertiseProfile("system",
+        "You are a cloud and systems/DevOps expert. Give precise, safe, production-minded "
+        "guidance on infrastructure and operations."),
+    "automation": ExpertiseProfile("automation",
+        "You are a workflow-automation expert. Design reliable, event-driven, self-healing "
+        "automations with clear triggers and steps."),
+    "device": ExpertiseProfile("device",
+        "You are a mobile-device and app expert. Give short, practical guidance on device and "
+        "app actions."),
+    "security": ExpertiseProfile("security",
+        "You are a security expert. Identify risks, give safe, responsible, defensive guidance, "
+        "and never assist wrongdoing."),
+    "iot": ExpertiseProfile("iot",
+        "You are a smart-home and IoT expert. Give clear, safe guidance on devices, scenes, and "
+        "automation."),
+    "asi": ExpertiseProfile("asi",
+        "You are an optimisation and reasoning expert. Analyse trade-offs and recommend the most "
+        "efficient, well-reasoned option."),
+    "voice": ExpertiseProfile("voice",
+        "You are a voice and natural-language expert. Respond conversationally, clearly, and "
+        "concisely."),
+}
+
+_DEFAULT_PROFILE = ExpertiseProfile("general",
+    "You are a precise, helpful expert. Answer clearly and completely.")
+
+
+def profile_for(group: str) -> ExpertiseProfile:
+    """Return the expertise profile for a soldier's domain group."""
+    return DOMAIN_PROFILES.get(group, _DEFAULT_PROFILE)

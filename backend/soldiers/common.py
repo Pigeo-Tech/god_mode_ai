@@ -99,12 +99,11 @@ class LlmSoldier(BaseSoldier):
         result = await tools.invoke(tool, {"prompt": request.objective}, agent_id=self.agent_id)
         answer = result.get("completion", "")
 
-        # Actionable request? Produce a deep link the app can open, and learn the
-        # process by saving it to memory so it is recalled instantly next time.
+        # Actionable request? Return a structured action the app opens automatically (no inline
+        # link), and learn the process by saving it to memory for instant recall next time.
         url, label = build_action_link(request.objective)
         action = None
         if url:
-            answer = f"{answer}\n\n{label}: {url}".strip()
             action = {"type": "open_url", "url": url, "label": label}
             owner = str((request.context or {}).get("user_id", "anon"))
             if self.deps.memory is not None:

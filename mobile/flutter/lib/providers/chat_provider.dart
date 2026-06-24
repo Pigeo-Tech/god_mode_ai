@@ -1,9 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/offline_store.dart';
 import '../core/ws_client.dart';
 import '../models/chat.dart';
 import 'auth_provider.dart';
+
+/// Opens an action URL (YouTube, Maps, Play Store, ...) directly in the relevant app.
+Future<void> _runAction(Map<String, dynamic>? result) async {
+  final action = result?['action'];
+  if (action is! Map) return;
+  final url = action['url'];
+  if (url is! String || url.isEmpty) return;
+  final uri = Uri.tryParse(url);
+  if (uri == null) return;
+  try {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {
+    // best-effort: if no handler, the link still shows in the reply text
+  }
+}
 
 final wsClientProvider = Provider<WsClient>((ref) => WsClient());
 final offlineStoreProvider = Provider<OfflineStore>((ref) => OfflineStore());
@@ -54,6 +70,8 @@ class ChatController extends StateNotifier<ChatState> {
           ];
           state = state.copyWith(messages: msgs, status: 'completed');
           await _store.saveHistory(msgs);
+          // Perform the action directly (e.g. open YouTube) instead of showing a link.
+          await _runAction(result);
         }
       }
     } catch (e) {

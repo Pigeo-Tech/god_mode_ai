@@ -87,9 +87,18 @@ class BaseGeneral(BaseAgent):
     def aggregate(self, request: AgentRequest, results: list[dict]) -> dict:
         """Combine soldier responses. Override for domain-specific merging."""
         succeeded = [r for r in results if r.get("status") == "completed"]
+        # Surface the first soldier action (open/play/launch) so the King — and ultimately the
+        # app — can perform it automatically.
+        action = None
+        for r in succeeded:
+            res = r.get("result")
+            if isinstance(res, dict) and res.get("action"):
+                action = res["action"]
+                break
         return {
             "domain": self.domain,
             "soldiers_used": len(results),
             "succeeded": len(succeeded),
             "results": results,
+            "action": action,
         }

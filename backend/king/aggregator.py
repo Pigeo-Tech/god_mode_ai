@@ -36,9 +36,18 @@ class Aggregator:
                    if isinstance(t.result, dict) and t.result.get("answer")]
         summary = "\n\n".join(answers) if answers else \
             self._summarize(objective, breakdown, completed, failed)
+
+        # Surface the first action so the app can open it (YouTube, Maps, Play Store, ...).
+        action = None
+        for task in ordered:
+            if isinstance(task.result, dict) and task.result.get("action"):
+                action = task.result["action"]
+                break
+
         return {
             "objective": objective,
             "summary": summary,
+            "action": action,
             "steps_total": len(ordered),
             "steps_completed": completed,
             "steps_failed": failed,
