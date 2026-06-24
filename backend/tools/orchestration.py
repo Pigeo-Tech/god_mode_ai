@@ -9,6 +9,7 @@ from __future__ import annotations
 from backend.tools.providers.base import (AnthropicProvider, GeminiProvider, LocalProvider,
                                           OpenAIProvider)
 from backend.tools.providers.llm_tool import LLMTool
+from backend.tools.providers.web_search import TavilyProvider, WebSearchTool
 from backend.tools.secrets import EnvSecretProvider
 
 # tool name -> (env key, provider class)
@@ -33,5 +34,11 @@ def register_provider_tools(registry, secrets=None, settings=None) -> list[str]:
         if api_key:
             registry.register(LLMTool(tool_name, provider_cls(api_key)))
             registered.append(tool_name)
+
+    # Live web search (Tavily) — grounds answers in current, sourced results.
+    tavily_key = secrets.get("TAVILY_API_KEY")
+    if tavily_key:
+        registry.register(WebSearchTool("web.search", TavilyProvider(tavily_key)))
+        registered.append("web.search")
 
     return registered

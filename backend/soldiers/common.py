@@ -55,6 +55,44 @@ def build_action_link(objective: str) -> tuple[str | None, str | None]:
     return f"https://www.google.com/search?q={q}", "Search the web"
 
 
+# Signals that a request needs *current* information (so we should hit live web search).
+_LIVE_SIGNALS = (
+    "new", "latest", "today", "tonight", "tomorrow", "current", "currently", "now", "price",
+    "cost", "near", "nearby", "showtime", "showtimes", "movie", "movies", "film", "films",
+    "news", "weather", "trending", "release", "released", "upcoming", "score", "live",
+    "this week", "this month", "this year", "2024", "2025", "2026", "who is", "what is",
+    "when is", "where is", "available", "recent", "update", "stock", "rate", "schedule",
+)
+
+
+def needs_live_info(text: str) -> bool:
+    """True when the request likely needs current data (vs. timeless knowledge)."""
+    low = (text or "").lower()
+    return ("?" in (text or "")) or any(k in low for k in _LIVE_SIGNALS)
+
+
+async def web_context(tools, query: str, agent_id: str) -> str:
+    """Fetch live web results via the ``web.search`` tool (Tavily) and format them for a prompt.
+
+    Returns "" when no web-search tool is configured or the call fails — so soldiers degrade
+    gracefully to model knowledge when search is unavailable.
+    """
+    available = tools.list() if tools is not None else []
+    if "web.search" not in (available or []):
+        return ""
+    try:
+        res = await tools.invoke("web.search", {"query": query}, agent_id=agent_id)
+    except Exception:  # pragma: no cover - search is best-effort
+        return ""
+    lines: list[str] = []
+    if res.get("answer"):
+        lines.append("Summary: " + str(res["answer"]))
+    for r in (res.get("results") or [])[:5]:
+        lines.append("- " + str(r.get("title") or "") + " | " + str(r.get("url") or "")
+                     + " | " + str(r.get("content") or "")[:220])
+    return "\n".join(lines)
+
+
 class ToolSoldier(BaseSoldier):
     """A soldier that wraps exactly one named tool from the Tool Registry."""
 
@@ -96,7 +134,14 @@ class LlmSoldier(BaseSoldier):
             else "llm.anthropic" if "llm.anthropic" in available
             else "llm.local"
         )
-        result = await tools.invoke(tool, {"prompt": request.objective}, agent_id=self.agent_id)
+        # Knowledge soldiers ground answers in live web results when search is available.
+        web = await web_context(tools, request.objective, self.agent_id)
+        if web:
+            prompt = ("Use these LIVE web results to answer accurately and cite the source links "
+                      "when useful.\n" + web + "\n\nUser request: " + request.objective)
+        else:
+            prompt = request.objective
+        result = await tools.invoke(tool, {"prompt": prompt}, agent_id=self.agent_id)
         answer = result.get("completion", "")
 
         # Actionable request? Return a structured action the app opens automatically (no inline

@@ -21,7 +21,7 @@ from urllib.parse import quote_plus
 
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
-from backend.soldiers.common import build_action_link
+from backend.soldiers.common import build_action_link, needs_live_info, web_context
 
 
 @dataclass
@@ -146,6 +146,11 @@ class SuperSoldier(BaseSoldier):
                       system_override: str = "") -> dict:
         tool = self._pick_model()
         prompt = self._compose_prompt(request, recalled, emphasis, system_override)
+        # Ground in live web results for current-info requests (or knowledge/movie domains).
+        if needs_live_info(request.objective) or self.profile.domain in ("knowledge", "movie"):
+            web = await web_context(self.deps.tools, request.objective, self.agent_id)
+            if web:
+                prompt = "LIVE web results (use these, cite sources):\n" + web + "\n\n" + prompt
         return await self.deps.tools.invoke(tool, {"prompt": prompt}, agent_id=self.agent_id)
 
     def _validate(self, raw: dict) -> dict:
