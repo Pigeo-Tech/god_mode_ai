@@ -30,7 +30,7 @@ class ExpertiseProfile:
 
     domain: str
     system_prompt: str
-    preferred_models: tuple = ("llm.openai", "llm.anthropic", "llm.local")
+    preferred_models: tuple = ("llm.nvidia", "llm.openai", "llm.anthropic", "llm.local")
     min_chars: int = 12
     enable_recovery: bool = True
     recovery_threshold: float = 0.5

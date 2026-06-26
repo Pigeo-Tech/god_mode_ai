@@ -7,13 +7,14 @@ working model offline; OpenAI/Anthropic/Gemini are added when their keys are con
 from __future__ import annotations
 
 from backend.tools.providers.base import (AnthropicProvider, GeminiProvider, LocalProvider,
-                                          OpenAIProvider)
+                                          NvidiaProvider, OpenAIProvider)
 from backend.tools.providers.llm_tool import LLMTool
 from backend.tools.providers.web_search import TavilyProvider, WebSearchTool
 from backend.tools.secrets import EnvSecretProvider
 
 # tool name -> (env key, provider class)
 _REMOTE_PROVIDERS = {
+    "llm.nvidia": ("NVIDIA_API_KEY", NvidiaProvider),
     "llm.openai": ("OPENAI_API_KEY", OpenAIProvider),
     "llm.anthropic": ("ANTHROPIC_API_KEY", AnthropicProvider),
     "llm.gemini": ("GOOGLE_API_KEY", GeminiProvider),

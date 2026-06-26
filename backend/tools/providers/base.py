@@ -45,6 +45,31 @@ class OpenAIProvider(LLMProvider):
         return resp.choices[0].message.content or ""
 
 
+class NvidiaProvider(LLMProvider):
+    """NVIDIA NIM — OpenAI-compatible endpoint (integrate.api.nvidia.com). Free tier, nvapi- keys.
+
+    Reuses the OpenAI SDK with a custom base_url, so it's a true drop-in for OpenAI. Default model
+    is a strong free one; override with the NVIDIA_MODEL env var.
+    """
+
+    name = "nvidia"
+
+    def __init__(self, api_key: str, model: str | None = None,
+                 base_url: str = "https://integrate.api.nvidia.com/v1") -> None:
+        import os
+        self._api_key = api_key
+        self.model = model or os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+        self._base_url = base_url
+
+    async def complete(self, prompt: str, **options) -> str:
+        from openai import AsyncOpenAI  # type: ignore  # lazy (OpenAI SDK, NVIDIA endpoint)
+
+        client = AsyncOpenAI(api_key=self._api_key, base_url=self._base_url)
+        resp = await client.chat.completions.create(
+            model=self.model, messages=[{"role": "user", "content": prompt}], **options)
+        return resp.choices[0].message.content or ""
+
+
 class AnthropicProvider(LLMProvider):
     name = "anthropic"
 

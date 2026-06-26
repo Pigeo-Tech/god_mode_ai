@@ -130,7 +130,8 @@ class LlmSoldier(BaseSoldier):
         tools = self.deps.tools
         available = tools.list() if tools is not None else []
         tool = (
-            "llm.openai" if "llm.openai" in available
+            "llm.nvidia" if "llm.nvidia" in available
+            else "llm.openai" if "llm.openai" in available
             else "llm.anthropic" if "llm.anthropic" in available
             else "llm.local"
         )
