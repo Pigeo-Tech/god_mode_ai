@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from urllib.parse import quote_plus
 
+from backend.core.skill_registry import SKILLS
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
 from backend.soldiers.common import build_action_link, needs_live_info, web_context
@@ -93,6 +94,8 @@ class SuperSoldier(BaseSoldier):
             "action": action,
             "confidence": round(verdict["confidence"], 2),
             "domain": self.profile.domain,
+            "skill": (SKILLS.match(request.objective).name
+                      if SKILLS.match(request.objective) else None),
             "plan": plan,
             "stages": {
                 "recalled": len(recalled),
@@ -151,6 +154,11 @@ class SuperSoldier(BaseSoldier):
             web = await web_context(self.deps.tools, request.objective, self.agent_id)
             if web:
                 prompt = "LIVE web results (use these, cite sources):\n" + web + "\n\n" + prompt
+        # Apply a matching installed Skill (SKILL.md) — runtime, no training.
+        skill = SKILLS.match(request.objective)
+        if skill:
+            prompt = ('Apply this expert skill ("' + skill.name + '") to the task:\n'
+                      + skill.body + "\n\n" + prompt)
         return await self.deps.tools.invoke(tool, {"prompt": prompt}, agent_id=self.agent_id)
 
     def _validate(self, raw: dict) -> dict:
