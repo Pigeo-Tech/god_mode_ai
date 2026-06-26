@@ -30,8 +30,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('GOD MODE AI',
+                Text('Buddy',
                     style: Theme.of(context).textTheme.headlineMedium),
+                Text('Your AI assistant',
+                    style: TextStyle(color: Theme.of(context).hintColor)),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _server,

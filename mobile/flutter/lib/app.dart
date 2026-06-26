@@ -23,7 +23,7 @@ class _GodModeAppState extends ConsumerState<GodModeApp> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     return MaterialApp(
-      title: 'GOD MODE AI',
+      title: 'Buddy',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF6750A4),

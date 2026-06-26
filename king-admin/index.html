@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGNI · King Command Center</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+  <!-- ===================== LOGIN ===================== -->
+  <div id="login" class="login-wrap">
+    <div class="login-card glass">
+      <div class="brand">
+        <span class="ember"><i class="fa-solid fa-fire"></i></span>
+        <div>
+          <h1>AGNI</h1>
+          <p>King Command Center</p>
+        </div>
+      </div>
+      <p class="muted login-sub">Administrator access only. Buddy serves users; the King serves you.</p>
+      <label>Server URL</label>
+      <input id="srv" class="fld" value="http://13.60.255.199:8000" />
+      <label>Admin email</label>
+      <input id="email" class="fld" value="admin@agni.ai" />
+      <label>Password</label>
+      <input id="pw" class="fld" type="password" value="Admin1234!" />
+      <div id="loginErr" class="err"></div>
+      <div class="row-btns">
+        <button id="signin" class="btn-ember">Sign in</button>
+        <button id="signup" class="btn-ghost">Create + sign in</button>
+      </div>
+    </div>
+    <div class="login-glow"></div>
+  </div>
+
+  <!-- ===================== APP ===================== -->
+  <div id="app" class="app hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="ember sm"><i class="fa-solid fa-fire"></i></span>
+        <span class="logo-text">AGNI</span>
+        <span class="logo-kbd">KING</span>
+      </div>
+      <nav id="nav" class="nav"></nav>
+      <button id="logout" class="logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign out</button>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb"><span id="crumb">Dashboard</span></div>
+        <div class="top-actions">
+          <div class="searchbox"><i class="fa-solid fa-magnifying-glass"></i><input id="search" placeholder="Search agents, skills…" /></div>
+          <button id="themeBtn" class="icon-btn" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+          <span id="health" class="pill"><i class="fa-solid fa-circle"></i> checking…</span>
+        </div>
+      </header>
+      <section id="view" class="view"></section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
