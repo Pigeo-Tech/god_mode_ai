@@ -15,6 +15,12 @@ JWT="$(docker exec agni printenv JWT_SECRET 2>/dev/null || true)"
 # ElevenLabs voice (Buddy) — reused if already set.
 ELEVEN="$(docker exec agni printenv ELEVENLABS_API_KEY 2>/dev/null || true)"
 ELVOICE="$(docker exec agni printenv ELEVENLABS_VOICE_ID 2>/dev/null || true)"
+# External Skills API (Option 2) — reused if already set.
+SK_URL="$(docker exec agni printenv SKILLS_API_URL 2>/dev/null || true)"
+SK_KEY="$(docker exec agni printenv SKILLS_API_KEY 2>/dev/null || true)"
+SK_AUTH="$(docker exec agni printenv SKILLS_API_AUTH 2>/dev/null || true)"
+SK_METHOD="$(docker exec agni printenv SKILLS_API_METHOD 2>/dev/null || true)"
+SK_FIELD="$(docker exec agni printenv SKILLS_API_FIELD 2>/dev/null || true)"
 docker build -f docker/Dockerfile -t agni-api .
 docker rm -f agni 2>/dev/null || true
 # Persist runtime-added skills (uploaded from the dashboard) on the host so they survive
@@ -30,6 +36,11 @@ docker run -d --name agni --restart unless-stopped -p 8000:8000 \
   -e NVIDIA_API_KEY="$NVIDIA" \
   -e ELEVENLABS_API_KEY="$ELEVEN" \
   ${ELVOICE:+-e ELEVENLABS_VOICE_ID="$ELVOICE"} \
+  ${SK_URL:+-e SKILLS_API_URL="$SK_URL"} \
+  ${SK_KEY:+-e SKILLS_API_KEY="$SK_KEY"} \
+  ${SK_AUTH:+-e SKILLS_API_AUTH="$SK_AUTH"} \
+  ${SK_METHOD:+-e SKILLS_API_METHOD="$SK_METHOD"} \
+  ${SK_FIELD:+-e SKILLS_API_FIELD="$SK_FIELD"} \
   -v /opt/app/backend/skills:/app/backend/skills \
   agni-api \
   uvicorn backend.api.main:app --host 0.0.0.0 --port 8000

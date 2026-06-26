@@ -93,6 +93,23 @@ async def web_context(tools, query: str, agent_id: str) -> str:
     return "\n".join(lines)
 
 
+async def skills_context(tools, query: str, agent_id: str) -> str:
+    """Call the external Skills API (``skills.invoke``) and format its result for the prompt.
+
+    Returns "" when no Skills API is configured or the call fails — so soldiers degrade
+    gracefully. This is the Option-2 connection: the soldier calls your skill service mid-task.
+    """
+    available = tools.list() if tools is not None else []
+    if "skills.invoke" not in (available or []):
+        return ""
+    try:
+        res = await tools.invoke("skills.invoke", {"query": query}, agent_id=agent_id)
+    except Exception:  # pragma: no cover - best-effort
+        return ""
+    text = (res or {}).get("text") or ""
+    return ("Skill service result:\n" + str(text)[:1500]) if text else ""
+
+
 class ToolSoldier(BaseSoldier):
     """A soldier that wraps exactly one named tool from the Tool Registry."""
 

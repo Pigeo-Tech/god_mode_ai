@@ -9,6 +9,7 @@ from __future__ import annotations
 from backend.tools.providers.base import (AnthropicProvider, GeminiProvider, LocalProvider,
                                           NvidiaProvider, OpenAIProvider)
 from backend.tools.providers.llm_tool import LLMTool
+from backend.tools.providers.skills_api import skills_api_from_env
 from backend.tools.providers.web_search import TavilyProvider, WebSearchTool
 from backend.tools.secrets import EnvSecretProvider
 
@@ -41,5 +42,11 @@ def register_provider_tools(registry, secrets=None, settings=None) -> list[str]:
     if tavily_key:
         registry.register(WebSearchTool("web.search", TavilyProvider(tavily_key)))
         registered.append("web.search")
+
+    # External Skills API (Option 2) — soldiers call your skill service during a task.
+    skills_tool = skills_api_from_env(secrets)
+    if skills_tool is not None:
+        registry.register(skills_tool)
+        registered.append("skills.invoke")
 
     return registered

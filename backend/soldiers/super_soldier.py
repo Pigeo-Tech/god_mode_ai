@@ -22,7 +22,8 @@ from urllib.parse import quote_plus
 from backend.core.skill_registry import SKILLS
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
-from backend.soldiers.common import build_action_link, needs_live_info, web_context
+from backend.soldiers.common import (build_action_link, needs_live_info, skills_context,
+                                     web_context)
 
 
 @dataclass
@@ -154,6 +155,10 @@ class SuperSoldier(BaseSoldier):
             web = await web_context(self.deps.tools, request.objective, self.agent_id)
             if web:
                 prompt = "LIVE web results (use these, cite sources):\n" + web + "\n\n" + prompt
+        # Call the external Skills API (Option 2) and fold its result into the reasoning.
+        ext = await skills_context(self.deps.tools, request.objective, self.agent_id)
+        if ext:
+            prompt = ext + "\n\n" + prompt
         # Apply a matching installed Skill (SKILL.md) — runtime, no training.
         skill = SKILLS.match(request.objective)
         if skill:
