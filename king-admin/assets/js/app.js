@@ -36,6 +36,7 @@
     tools: () => api.get("/v1/tools"),
     chat: (m) => api.post("/v1/chat", { message: m, stream: false }),
     admin: (p) => api.get("/v1/admin/" + p),
+    adminPost: (p, body) => api.post("/v1/admin/" + p, body),
   };
 
   // ---------------------------------------------------------------- navigation
@@ -325,7 +326,41 @@
         <pre class="mono" style="white-space:pre-wrap;font-size:11px;max-height:120px;overflow:auto;background:rgba(255,255,255,.03);padding:10px;border-radius:8px;margin:0">${esc(s.preview)}</pre>
       </div>`).join("");
     view.innerHTML = title(`Skills · ${d.count}`, "SKILL.md") +
-      `<div class="grid" style="gap:12px">${cards || `<p class="muted">No skills loaded yet.</p>`}</div>` + note(d.note);
+      `<div class="card glass" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span class="ember sm"><i class="fa-solid fa-plus"></i></span>
+          <div style="font-weight:600">Teach AGNI a new skill</div>
+          <label class="btn-ghost" style="margin-left:auto;cursor:pointer;font-size:12px;padding:7px 12px">
+            <i class="fa-solid fa-file-arrow-up"></i> Load .md file
+            <input id="skFile" type="file" accept=".md,.markdown,text/markdown,text/plain" style="display:none" />
+          </label>
+        </div>
+        <input id="skName" class="fld" placeholder="Skill name (e.g. invoice-parser)" style="margin-bottom:10px" />
+        <textarea id="skBody" class="fld" rows="8" placeholder="Paste SKILL.md content here. Frontmatter (--- name / description ---) is optional — it'll be added automatically." style="resize:vertical;font-family:'JetBrains Mono',monospace;font-size:12px"></textarea>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <button id="skSave" class="btn-ember" style="flex:0 0 auto;padding:10px 18px">Save skill</button>
+          <span id="skMsg" class="muted" style="font-size:12px"></span>
+        </div>
+      </div>
+      <div class="grid" style="gap:12px">${cards || `<p class="muted">No skills loaded yet.</p>`}</div>` + note(d.note);
+    const nameEl = $("#skName"), bodyEl = $("#skBody"), msg = $("#skMsg");
+    $("#skFile").onchange = (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { bodyEl.value = r.result; if (!nameEl.value) nameEl.value = f.name.replace(/\.(md|markdown|txt)$/i, ""); };
+      r.readAsText(f);
+    };
+    $("#skSave").onclick = async () => {
+      const name = nameEl.value.trim(), content = bodyEl.value.trim();
+      if (!name || !content) { msg.textContent = "Name and content are required."; return; }
+      msg.textContent = "Saving…"; $("#skSave").disabled = true;
+      try {
+        const r = await api.adminPost("skills", { name, content });
+        msg.innerHTML = `<span style="color:var(--good)">Saved "${esc(r.name)}" · ${r.count} skills loaded.</span>`;
+        setTimeout(() => go("skills"), 700);
+      } catch (ex) { msg.innerHTML = `<span style="color:var(--bad)">${esc(ex.message || ex)}</span>`; }
+      finally { $("#skSave").disabled = false; }
+    };
   }
 
   // ---------------------------------------------------------------- Knowledge

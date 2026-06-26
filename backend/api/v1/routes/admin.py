@@ -12,12 +12,18 @@ from __future__ import annotations
 import os
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.deps import get_auth, get_principal, get_service
 from backend.config.settings import settings
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
+
+
+class SkillUpload(BaseModel):
+    name: str
+    content: str
 
 
 # --------------------------------------------------------------------------- helpers
@@ -95,6 +101,25 @@ async def skills(_=Depends(get_principal)):
     return {"count": len(items), "skills": items,
             "note": "SKILL.md files in backend/skills/. Drop a folder with SKILL.md to teach AGNI "
                     "a new procedure — matched skills are injected into the soldier's prompt."}
+
+
+@router.post("/skills")
+async def create_skill(body: SkillUpload, principal=Depends(get_principal),
+                       service=Depends(get_service)):
+    """Create or update a SKILL.md from the dashboard, then hot-reload the registry."""
+    from backend.core.skill_registry import SKILLS
+
+    name = (body.name or "").strip()
+    content = (body.content or "").strip()
+    if not name or not content:
+        raise HTTPException(400, "name and content are required")
+    try:
+        skill = SKILLS.save_skill(name, content)
+    except Exception as exc:  # pragma: no cover - surfacing IO/permission errors to the UI
+        raise HTTPException(500, f"could not save skill: {exc}")
+    service.record_audit("skill", "saved", skill.name, user=str(principal.id)[:8])
+    return {"ok": True, "name": skill.name, "description": skill.description,
+            "count": len(SKILLS.skills)}
 
 
 # --------------------------------------------------------------------------- knowledge

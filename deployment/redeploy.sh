@@ -11,12 +11,16 @@ TAVILY="$(docker exec agni printenv TAVILY_API_KEY 2>/dev/null || true)"
 NVIDIA="$(docker exec agni printenv NVIDIA_API_KEY 2>/dev/null || true)"
 docker build -f docker/Dockerfile -t agni-api .
 docker rm -f agni 2>/dev/null || true
+# Persist runtime-added skills (uploaded from the dashboard) on the host so they survive
+# rebuilds. git reset keeps untracked skill folders, so user-added skills are never lost.
+mkdir -p /opt/app/backend/skills
 docker run -d --name agni --restart unless-stopped -p 8000:8000 \
   -e USE_IN_MEMORY_BACKENDS=true -e WAIT_FOR_DEPS=false \
   -e JWT_SECRET="$(openssl rand -hex 24)" \
   -e OPENAI_API_KEY="$OPENAI" \
   -e TAVILY_API_KEY="$TAVILY" \
   -e NVIDIA_API_KEY="$NVIDIA" \
+  -v /opt/app/backend/skills:/app/backend/skills \
   agni-api \
   uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
 sleep 4
