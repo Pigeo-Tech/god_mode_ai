@@ -266,6 +266,7 @@ async def apikeys(_=Depends(get_principal), service=Depends(get_service)):
         })
     extras = {
         "web.search (Tavily)": bool(os.getenv("TAVILY_API_KEY")),
+        "voice (ElevenLabs)": bool(os.getenv("ELEVENLABS_API_KEY")),
     }
     return {"providers": providers, "services": extras,
             "tools_total": len(service.container.tools.list()),

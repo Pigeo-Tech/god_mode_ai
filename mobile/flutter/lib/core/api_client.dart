@@ -61,6 +61,17 @@ class ApiClient {
     return await _decode(r) as Map<String, dynamic>;
   }
 
+  /// Ask the backend to synthesize speech (ElevenLabs) for [text]. Returns MP3 bytes, or null
+  /// if voice isn't configured / the request failed (caller falls back to device TTS).
+  Future<List<int>?> tts(String text) async {
+    try {
+      final r = await _http.post(_uri('/v1/tts'),
+          headers: _headers, body: jsonEncode({'text': text}));
+      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) return r.bodyBytes;
+    } catch (_) {/* fall through to device TTS */}
+    return null;
+  }
+
   Future<List<AgentInfo>> agents() async {
     final r = await _http.get(_uri('/v1/agents'), headers: _headers);
     final json = await _decode(r) as Map<String, dynamic>;

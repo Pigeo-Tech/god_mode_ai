@@ -23,6 +23,7 @@ from backend.api.v1.routes import admin as admin_routes
 from backend.api.v1.routes import auth as auth_routes
 from backend.api.v1.routes import chat as chat_routes
 from backend.api.v1.routes import system as system_routes
+from backend.api.v1.routes import tts as tts_routes
 from backend.api.v1.websockets import stream as stream_ws
 from backend.config.settings import settings
 from backend.security.auth_service import AuthService
@@ -55,7 +56,8 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(CorrelationIdMiddleware)
-    for module in (system_routes, auth_routes, chat_routes, agents_routes, admin_routes):
+    for module in (system_routes, auth_routes, chat_routes, agents_routes, admin_routes,
+                   tts_routes):
         app.include_router(module.router)
     app.include_router(stream_ws.router)
     return app

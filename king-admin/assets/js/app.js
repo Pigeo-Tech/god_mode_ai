@@ -18,13 +18,20 @@
     },
     async get(p) {
       const r = await fetch(store.base + p, { headers: api.headers() });
+      if (r.status === 401) return api.onUnauthorized();
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     },
     async post(p, body) {
       const r = await fetch(store.base + p, { method: "POST", headers: api.headers(), body: JSON.stringify(body) });
+      if (r.status === 401 && store.token) return api.onUnauthorized();
       if (!r.ok) { const t = await r.text(); throw new Error("HTTP " + r.status + ": " + t); }
       return r.json();
+    },
+    onUnauthorized() {
+      // Stale/expired token (e.g. after a server redeploy) — drop it and return to login.
+      if (store.token) { store.token = ""; location.reload(); }
+      throw new Error("Session expired — please sign in again.");
     },
     register: (e, pw) => api.post("/v1/auth/register", { email: e, password: pw }),
     async login(e, pw) {

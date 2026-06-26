@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -21,6 +24,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _input = TextEditingController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _player = AudioPlayer(); // plays ElevenLabs MP3 from the backend
   bool _listening = false;
   bool _voiceReplies = true;
   int _spoken = 0; // how many King replies we've already spoken
@@ -35,6 +39,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void dispose() {
     _tts.stop();
+    _player.dispose();
     _input.dispose();
     super.dispose();
   }
@@ -46,6 +51,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
     await _tts.stop();
+    await _player.stop();
     final ok = await _speech.initialize(
       onError: (_) => setState(() => _listening = false),
       onStatus: (s) {
@@ -80,8 +86,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!_voiceReplies) return;
     final clean = text.replaceAll(RegExp(r'https?://\S+'), '').trim();
     if (clean.isEmpty) return;
+    final speech = clean.length > 700 ? clean.substring(0, 700) : clean;
     await _tts.stop();
-    await _tts.speak(clean.length > 700 ? clean.substring(0, 700) : clean);
+    await _player.stop();
+    // Prefer the natural ElevenLabs voice from the backend; fall back to device TTS.
+    final bytes = await ref.read(apiClientProvider).tts(speech);
+    if (bytes != null) {
+      try {
+        await _player.play(BytesSource(Uint8List.fromList(bytes)));
+        return;
+      } catch (_) {/* fall back to device TTS below */}
+    }
+    await _tts.speak(speech);
   }
 
   @override

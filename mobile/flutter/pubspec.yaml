@@ -18,7 +18,8 @@ dependencies:
   firebase_messaging: ^15.0.0     # push notifications
   url_launcher: ^6.3.0            # open Play Store / YouTube deep links
   speech_to_text: ^7.0.0         # Buddy voice input (mic -> text)
-  flutter_tts: ^4.2.0            # Buddy voice output (speak replies)
+  flutter_tts: ^4.2.0            # Buddy voice output fallback (device TTS)
+  audioplayers: ^6.1.0          # play ElevenLabs MP3 voice from the backend
   intl: ^0.19.0
 
 dev_dependencies:
