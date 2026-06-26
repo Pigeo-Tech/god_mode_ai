@@ -4,7 +4,7 @@
 
   // ---------------------------------------------------------------- API client
   const store = {
-    get base() { return localStorage.getItem("agni_base") || "http://13.60.255.199:8000"; },
+    get base() { return localStorage.getItem("agni_base") || "https://api.agentagni.online"; },
     set base(v) { localStorage.setItem("agni_base", v); },
     get token() { return localStorage.getItem("agni_token") || ""; },
     set token(v) { v ? localStorage.setItem("agni_token", v) : localStorage.removeItem("agni_token"); },
@@ -35,6 +35,7 @@
     agents: () => api.get("/v1/agents"),
     tools: () => api.get("/v1/tools"),
     chat: (m) => api.post("/v1/chat", { message: m, stream: false }),
+    admin: (p) => api.get("/v1/admin/" + p),
   };
 
   // ---------------------------------------------------------------- navigation
@@ -44,19 +45,19 @@
     ["buddy", "Buddy Console", "fa-comments", renderBuddy],
     ["generals", "Generals", "fa-chess-rook", renderGenerals],
     ["soldiers", "Soldiers", "fa-users", renderSoldiers],
-    ["skills", "Skills", "fa-scroll", phase2("Skills Manager", "Create, edit, assign and version SKILL.md files for King/Generals/Soldiers.")],
+    ["skills", "Skills", "fa-scroll", renderSkills],
     ["llms", "LLM Manager", "fa-microchip", renderLLMs],
-    ["knowledge", "Knowledge", "fa-book", phase2("Knowledge Base", "Upload PDF/DOCX/CSV/MD, tag, search, vector-index.")],
-    ["memory", "Memory", "fa-brain", phase2("Memory System", "Short / long / session / persistent memory, search & export.")],
-    ["prompts", "Prompt Library", "fa-pen-nib", phase2("Prompt Library", "Store, version, test and assign prompts.")],
-    ["users", "Users", "fa-user-shield", phase2("User Management", "Roles, permissions, 2FA, admin operators.")],
-    ["automation", "Automation", "fa-robot", phase2("Automation", "Triggers, schedules, self-healing workflows.")],
-    ["analytics", "Analytics", "fa-chart-line", phase2("Analytics", "Growth, requests, cost, agent performance.")],
-    ["wallet", "Wallet", "fa-wallet", phase2("Wallet & Cost", "Balance, AI cost, budget caps.")],
-    ["apimgr", "API Manager", "fa-plug", phase2("API Manager", "Keys, services, rate limits, health.")],
-    ["logs", "Logs", "fa-list", phase2("Audit Logs", "Every login, task, skill, error, upload.")],
-    ["security", "Security", "fa-shield-halved", phase2("Security", "RBAC, sessions, audit, threat status.")],
-    ["backups", "Backups", "fa-database", phase2("Backups", "Skills, knowledge, prompts, settings — backup & restore.")],
+    ["knowledge", "Knowledge", "fa-book", renderKnowledge],
+    ["memory", "Memory", "fa-brain", renderMemory],
+    ["prompts", "Prompt Library", "fa-pen-nib", renderPrompts],
+    ["users", "Users", "fa-user-shield", renderUsers],
+    ["automation", "Automation", "fa-robot", renderAutomation],
+    ["analytics", "Analytics", "fa-chart-line", renderAnalytics],
+    ["wallet", "Wallet", "fa-wallet", renderWallet],
+    ["apimgr", "API Manager", "fa-plug", renderApiMgr],
+    ["logs", "Logs", "fa-list", renderLogs],
+    ["security", "Security", "fa-shield-halved", renderSecurity],
+    ["backups", "Backups", "fa-database", renderBackups],
     ["settings", "Settings", "fa-gear", renderSettings],
   ];
 
@@ -300,14 +301,226 @@
     $("#setSave").onclick = () => { store.base = $("#setSrv").value.trim(); CACHE = { agents: null, tools: null }; location.reload(); };
   }
 
-  // ---------------------------------------------------------------- Phase-2 placeholder
-  function phase2(title, desc) {
-    return (view) => {
-      view.innerHTML = `<div class="placeholder"><div class="ph glass">
-        <i class="fa-solid fa-screwdriver-wrench"></i><h3>${title}</h3>
-        <p class="muted">${desc}</p>
-        <span class="tag" style="margin-top:14px;display:inline-block">Designed · backend endpoint in next phase</span>
-      </div></div>`;
-    };
+  // ---------------------------------------------------------------- shared helpers
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const fmtBytes = (n) => { n = +n || 0; if (n < 1024) return n + " B"; if (n < 1048576) return (n / 1024).toFixed(1) + " KB"; return (n / 1048576).toFixed(1) + " MB"; };
+  const fmtDur = (s) => { s = +s || 0; const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
+  const ago = (ts) => { if (!ts) return "—"; const s = Date.now() / 1000 - ts; if (s < 60) return Math.floor(s) + "s ago"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; return Math.floor(s / 86400) + "d ago"; };
+  const note = (t) => `<p class="muted" style="margin:16px 2px 0;font-size:12px">${esc(t)}</p>`;
+  const title = (t, tag) => `<div class="section-title">${esc(t)}${tag ? ` <span class="tag">${esc(tag)}</span>` : ""}</div>`;
+  const stat = (ic, col, val, lbl) => `<div class="card glass stat"><div class="ic" style="background:${col}22;color:${col}"><i class="fa-solid ${ic}"></i></div><div class="val">${val}</div><div class="lbl">${esc(lbl)}</div></div>`;
+  const pill = (ok, txt) => `<span class="pill ${ok ? "ok" : "down"}"><i class="fa-solid fa-circle"></i> ${esc(txt)}</span>`;
+
+  // ---------------------------------------------------------------- Skills
+  async function renderSkills(view) {
+    const d = await api.admin("skills");
+    const cards = (d.skills || []).map((s) => `
+      <div class="card glass">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="ember sm"><i class="fa-solid fa-scroll"></i></span>
+          <div style="font-weight:600">${esc(s.name)}</div>
+          <span class="tag" style="margin-left:auto">${s.chars} chars</span>
+        </div>
+        <p class="muted" style="margin:10px 0 8px">${esc(s.description) || "No description."}</p>
+        <pre class="mono" style="white-space:pre-wrap;font-size:11px;max-height:120px;overflow:auto;background:rgba(255,255,255,.03);padding:10px;border-radius:8px;margin:0">${esc(s.preview)}</pre>
+      </div>`).join("");
+    view.innerHTML = title(`Skills · ${d.count}`, "SKILL.md") +
+      `<div class="grid" style="gap:12px">${cards || `<p class="muted">No skills loaded yet.</p>`}</div>` + note(d.note);
+  }
+
+  // ---------------------------------------------------------------- Knowledge
+  async function renderKnowledge(view) {
+    const d = await api.admin("knowledge");
+    const rows = (d.documents || []).map((doc) => `
+      <div class="card glass" style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+        <span class="ic" style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#2B62FF22;color:#5B8CFF"><i class="fa-solid fa-folder-open"></i></span>
+        <div><div style="font-weight:600">${esc(doc.name)}</div><div class="muted" style="font-size:12px">${(doc.files || []).map(esc).join(" · ") || "—"}</div></div>
+        <span class="tag" style="margin-left:auto">${fmtBytes(doc.bytes)}</span>
+      </div>`).join("");
+    view.innerHTML = title(`Knowledge Base · ${d.count} sources`, `${d.skills_indexed} indexed`) +
+      `<div class="grid" style="gap:10px">${rows || `<p class="muted">No knowledge sources yet.</p>`}</div>` +
+      note("Knowledge sources are the SKILL.md folders AGNI learns from. Add a folder under backend/skills/ to teach a new capability.");
+  }
+
+  // ---------------------------------------------------------------- Memory
+  async function renderMemory(view) {
+    const d = await api.admin("memory");
+    view.innerHTML = title("Memory System", d.backend) +
+      `<div class="grid stats">
+        ${stat("fa-pen", "#FF8A3D", d.writes, "Memories Written")}
+        ${stat("fa-magnifying-glass", "#39E0C4", d.reads, "Recalls")}
+        ${stat("fa-layer-group", "#2B62FF", (d.scopes || []).length, "Memory Scopes")}
+      </div>
+      <div class="card glass" style="margin-top:16px">
+        ${title("Scopes")}
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${(d.scopes || []).map((s) => `<span class="tag">${esc(s)}</span>`).join("")}</div>
+        ${title("Backing Stores")}
+        <div class="muted mono" style="font-size:12px">${Object.entries(d.stores || {}).map(([k, v]) => `${k}: ${esc(v)}`).join("<br>")}</div>
+      </div>` + note(d.note);
+  }
+
+  // ---------------------------------------------------------------- Prompt Library
+  async function renderPrompts(view) {
+    const d = await api.admin("prompts");
+    const cards = (d.prompts || []).map((p) => `
+      <div class="card glass">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span class="dot"></span><div style="font-weight:600;text-transform:capitalize">${esc(p.domain)}</div>
+          <span class="tag" style="margin-left:auto">${(p.preferred_models || []).map((m) => esc(m.replace("llm.", ""))).join(" › ")}</span>
+        </div>
+        <p class="muted" style="margin:0">${esc(p.system_prompt)}</p>
+      </div>`).join("");
+    view.innerHTML = title(`Prompt Library · ${d.count} domains`) +
+      `<div class="grid" style="gap:12px">${cards}</div>
+       <div class="card glass" style="margin-top:14px">${title("Action voice")}<p class="muted" style="margin:0">${esc(d.action_voice)}</p></div>` +
+      note(d.note);
+  }
+
+  // ---------------------------------------------------------------- Users
+  async function renderUsers(view) {
+    const d = await api.admin("users");
+    const rows = (d.users || []).map((u) => `
+      <tr>
+        <td>${esc(u.email)}</td>
+        <td>${(u.roles || []).map((r) => `<span class="tag">${esc(r)}</span>`).join(" ")}</td>
+        <td class="mono" style="font-size:11px">${(u.scopes || []).map(esc).join(", ") || "—"}</td>
+        <td>${u.last_login ? ago(u.last_login) : `<span class="muted">never</span>`}</td>
+      </tr>`).join("");
+    view.innerHTML = title(`Users · ${d.count}`) +
+      `<div class="card glass" style="overflow:auto"><table class="tbl">
+        <thead><tr><th>Email</th><th>Roles</th><th>Scopes</th><th>Last login</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="4" class="muted">No users registered.</td></tr>`}</tbody>
+      </table></div>` +
+      note("Users register through Buddy or the admin login. Roles map to scopes via the Permission Manager.");
+  }
+
+  // ---------------------------------------------------------------- Automation
+  async function renderAutomation(view) {
+    const d = await api.admin("automation");
+    const caps = (d.capabilities || []).map((c) => `
+      <div class="card glass" style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+        <span class="ic" style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#35D07F22;color:#35D07F"><i class="fa-solid fa-robot"></i></span>
+        <div><div style="font-weight:600">${esc(c.name)}</div><div class="muted" style="font-size:12px">${esc(c.detail)}</div></div>
+        <span style="margin-left:auto">${pill(c.status === "active", c.status)}</span>
+      </div>`).join("");
+    view.innerHTML = title("Automation") +
+      `<div class="grid stats">
+        ${stat("fa-clock", "#FF8A3D", (d.scheduled_jobs || []).length, "Scheduled Jobs")}
+        ${stat("fa-bolt", "#39E0C4", d.jobs_fired, "Jobs Fired")}
+        ${stat("fa-diagram-project", "#2B62FF", d.workflow_steps, "Workflow Steps")}
+      </div>
+      <div style="margin-top:16px">${title("Capabilities")}<div class="grid" style="gap:10px">${caps}</div></div>`;
+  }
+
+  // ---------------------------------------------------------------- Analytics
+  async function renderAnalytics(view) {
+    const d = await api.admin("analytics");
+    view.innerHTML = title("Analytics", "live") +
+      `<div class="grid stats">
+        ${stat("fa-paper-plane", "#FF8A3D", d.total_requests, "Total Requests")}
+        ${stat("fa-microchip", "#39E0C4", d.soldier_runs, "Soldier Runs")}
+        ${stat("fa-screwdriver-wrench", "#FFC857", d.tool_invocations, "Tool Calls")}
+        ${stat("fa-clock", "#35D07F", fmtDur(d.uptime_seconds), "Uptime")}
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px;gap:16px">
+        <div class="card glass">${title("Requests by Model Provider")}<canvas id="provChart" height="160"></canvas></div>
+        <div class="card glass">${title("Event Counters")}<div id="ctrList" class="mono" style="font-size:12px;max-height:220px;overflow:auto"></div></div>
+      </div>`;
+    const usage = d.provider_usage || {};
+    const labels = Object.keys(usage), vals = Object.values(usage);
+    const ctx = document.getElementById("provChart");
+    if (ctx && labels.length) new Chart(ctx, { type: "bar", data: { labels, datasets: [{ data: vals, backgroundColor: ["#76B900", "#10A37F", "#D97757", "#5B8CFF", "#8793AD"] }] }, options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#8793AD" }, grid: { display: false } }, y: { ticks: { color: "#8793AD" }, grid: { color: "rgba(255,255,255,.04)" } } } } });
+    else if (ctx) ctx.parentElement.innerHTML = title("Requests by Model Provider") + `<p class="muted">No requests yet — ask the King something in Buddy Console.</p>`;
+    const cl = document.getElementById("ctrList");
+    if (cl) cl.innerHTML = Object.entries(d.counters || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span>${esc(k)}</span><span style="color:#FF8A3D">${v}</span></div>`).join("") || `<p class="muted">No metrics yet.</p>`;
+  }
+
+  // ---------------------------------------------------------------- Wallet
+  async function renderWallet(view) {
+    const d = await api.admin("wallet");
+    const usage = Object.entries(d.provider_usage || {});
+    view.innerHTML = title("Wallet & Cost") +
+      `<div class="grid stats">
+        ${stat("fa-coins", "#FFC857", "$" + (d.estimated_ai_cost ?? 0), "Est. AI Cost")}
+        ${stat("fa-shield-halved", "#35D07F", "Gated", "Spend Control")}
+        ${stat("fa-receipt", "#39E0C4", usage.reduce((a, [, v]) => a + v, 0), "Billable Answers")}
+      </div>
+      <div class="card glass" style="margin-top:16px">
+        ${title("Usage by provider")}
+        ${usage.length ? usage.map(([p, v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="text-transform:capitalize">${esc(p)}</span><span class="muted">${v} answers · $${((d.pricing_per_answer || {})[p] || 0)}/answer</span></div>`).join("") : `<p class="muted">No billable usage yet (NVIDIA + local are free).</p>`}
+      </div>` + note(d.note);
+  }
+
+  // ---------------------------------------------------------------- API Manager
+  async function renderApiMgr(view) {
+    const d = await api.admin("apikeys");
+    const rows = (d.providers || []).map((p) => `
+      <div class="card glass" style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+        <span class="ic" style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#FF8A3D22;color:#FF8A3D"><i class="fa-solid fa-plug"></i></span>
+        <div><div style="font-weight:600">${esc(p.label)} ${p.free ? `<span class="tag">free</span>` : ""}</div><div class="muted mono" style="font-size:11px">${esc(p.tool)} · ${esc(p.model)} · priority ${p.priority}</div></div>
+        <span style="margin-left:auto">${p.configured ? pill(true, p.registered ? "active" : "configured") : pill(false, "not set")}</span>
+      </div>`).join("");
+    const svc = Object.entries(d.services || {}).map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span>${esc(k)}</span>${v ? pill(true, "configured") : pill(false, "not set")}</div>`).join("");
+    view.innerHTML = title("API Manager", `${d.tools_total} tools`) +
+      `<div class="grid" style="gap:10px">${rows}</div>
+       <div class="card glass" style="margin-top:14px">${title("Services")}${svc}</div>` + note(d.note);
+  }
+
+  // ---------------------------------------------------------------- Logs
+  async function renderLogs(view) {
+    const d = await api.admin("logs");
+    const icon = { system: "fa-server", chat: "fa-comment", auth: "fa-key", error: "fa-triangle-exclamation" };
+    const rows = (d.events || []).map((e) => `
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <i class="fa-solid ${icon[e.kind] || "fa-circle-info"}" style="color:#FF8A3D;margin-top:3px"></i>
+        <div style="flex:1"><div><b>${esc(e.event)}</b> ${e.detail ? `<span class="muted">— ${esc(e.detail)}</span>` : ""}</div>
+        <div class="muted" style="font-size:11px">${esc(e.kind)}${e.user ? " · " + esc(e.user) : ""} · ${ago(e.ts)}</div></div>
+      </div>`).join("");
+    view.innerHTML = title(`Audit Logs · ${d.count}`) +
+      `<div class="card glass">${rows || `<p class="muted">No events recorded yet.</p>`}</div>`;
+  }
+
+  // ---------------------------------------------------------------- Security
+  async function renderSecurity(view) {
+    const d = await api.admin("security");
+    const roles = Object.entries(d.rbac_roles || {}).map(([r, sc]) => `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span class="tag">${esc(r)}</span><span class="muted mono" style="font-size:12px">${(sc || []).map(esc).join(", ")}</span></div>`).join("");
+    view.innerHTML = title("Security", d.threat_status) +
+      `<div class="grid stats">
+        ${stat("fa-user-shield", "#35D07F", d.users_total, "Users")}
+        ${stat("fa-right-to-bracket", "#39E0C4", d.sessions_seen, "Sessions Seen")}
+        ${stat("fa-list-check", "#FF8A3D", d.audit_events, "Audit Events")}
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px;gap:16px">
+        <div class="card glass">${title("Authentication")}
+          <div class="muted" style="line-height:1.9">
+            Method: <b style="color:var(--ink)">${esc(d.auth.method)}</b><br>
+            Algorithm: ${esc(d.auth.algorithm)}<br>
+            Token TTL: ${esc(d.auth.access_token_minutes)} min<br>
+            Transport: ${esc(d.transport)}<br>
+            CORS: ${esc(d.cors)}<br>
+            Secrets: ${esc(d.secrets)}
+          </div>
+        </div>
+        <div class="card glass">${title("RBAC roles → scopes")}${roles || `<p class="muted">Default roles.</p>`}</div>
+      </div>`;
+  }
+
+  // ---------------------------------------------------------------- Backups
+  async function renderBackups(view) {
+    const d = await api.admin("backups");
+    const p = d.policy || {};
+    const arch = (d.local_archives || []).map((a) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span class="mono" style="font-size:12px">${esc(a.name)}</span><span class="muted">${fmtBytes(a.bytes)} · ${ago(a.modified)}</span></div>`).join("");
+    view.innerHTML = title("Backups") +
+      `<div class="card glass">${title("Policy")}
+        <div class="muted" style="line-height:1.9">
+          Backs up: ${(p.what || []).map((x) => `<span class="tag">${esc(x)}</span>`).join(" ")}<br>
+          Target: <b style="color:var(--ink)">${esc(p.target)}</b><br>
+          Schedule: ${esc(p.schedule)}<br>
+          Retention: ${esc(p.retention)}<br>
+          Script: <span class="mono">${esc(d.script)}</span>
+        </div>
+      </div>
+      <div class="card glass" style="margin-top:14px">${title(`Local archives · ${(d.local_archives || []).length}`)}${arch || `<p class="muted">No local archives yet. Backups are pushed to Hostinger when the cron job runs.</p>`}</div>` +
+      note(d.note);
   }
 })();

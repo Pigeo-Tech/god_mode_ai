@@ -71,6 +71,26 @@ class MetricsRegistry:
                 "histogram_counts": {repr(k): v for k, v in self._hist_count.items()},
             }
 
+    def counters_by_name(self) -> dict[str, float]:
+        """Sum counter values per metric name (labels collapsed) — for dashboards."""
+        out: dict[str, float] = {}
+        with self._lock:
+            for (name, _labels), val in self._counters.items():
+                out[name] = out.get(name, 0.0) + val
+        return out
+
+    def counters_by_label(self, name: str, label: str) -> dict[str, float]:
+        """Break a single counter down by one label value (e.g. provider) — for charts."""
+        out: dict[str, float] = {}
+        with self._lock:
+            for (cname, labels), val in self._counters.items():
+                if cname != name:
+                    continue
+                d = dict(labels)
+                key = d.get(label, "—")
+                out[key] = out.get(key, 0.0) + val
+        return out
+
     def render(self) -> str:
         """Render Prometheus text exposition format."""
         lines: list[str] = []

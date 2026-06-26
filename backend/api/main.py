@@ -19,6 +19,7 @@ from backend.api.middleware.correlation import CorrelationIdMiddleware
 from backend.api.middleware.ratelimit import RateLimitMiddleware
 from backend.api.service import ApiService
 from backend.api.v1.routes import agents as agents_routes
+from backend.api.v1.routes import admin as admin_routes
 from backend.api.v1.routes import auth as auth_routes
 from backend.api.v1.routes import chat as chat_routes
 from backend.api.v1.routes import system as system_routes
@@ -54,7 +55,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(CorrelationIdMiddleware)
-    for module in (system_routes, auth_routes, chat_routes, agents_routes):
+    for module in (system_routes, auth_routes, chat_routes, agents_routes, admin_routes):
         app.include_router(module.router)
     app.include_router(stream_ws.router)
     return app

@@ -158,6 +158,12 @@ label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 6px
 .composer input { flex: 1; }
 .tag { display: inline-block; font-size: 11px; padding: 3px 9px; border-radius: 7px; background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--muted); }
 
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.tbl td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; }
+.tbl tbody tr:hover { background: rgba(255,255,255,.02); }
+pre.mono, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
 .placeholder { display: grid; place-items: center; min-height: 50vh; text-align: center; }
 .placeholder .ph { max-width: 460px; padding: 34px; }
 .placeholder i { font-size: 38px; color: var(--ember); }

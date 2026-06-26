@@ -6,6 +6,7 @@ UserRepository (PostgreSQL) implements the same shape in production.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from uuid import uuid4
 
@@ -22,6 +23,8 @@ class User:
     email: str
     password_hash: str
     roles: list[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    last_login: float | None = None
 
 
 @dataclass
@@ -54,10 +57,20 @@ class AuthService:
             return sorted(self._permissions.scopes_for(user.id))
         return [f"role:{r}" for r in user.roles]
 
+    def list_users(self) -> list[dict]:
+        """Admin view of registered users (no secrets)."""
+        return [
+            {"id": u.id, "email": u.email, "roles": list(u.roles),
+             "scopes": self._scopes_for(u),
+             "created_at": u.created_at, "last_login": u.last_login}
+            for u in self._users.values()
+        ]
+
     def authenticate(self, email: str, password: str) -> dict:
         user = self._users.get(email)
         if user is None or not self._hasher.verify(password, user.password_hash):
             raise AuthError("invalid credentials")
+        user.last_login = time.time()
         scopes = self._scopes_for(user)
         return {
             "access_token": self._jwt.issue(user.id, scopes, typ="access"),

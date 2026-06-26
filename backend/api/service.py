@@ -7,6 +7,8 @@ Keeping this FastAPI-free makes the whole request path unit-testable without a w
 """
 from __future__ import annotations
 
+import time
+from collections import deque
 from typing import AsyncIterator
 from uuid import uuid4
 
@@ -21,6 +23,16 @@ class ApiService:
         self.container = container
         self.king = king
         self._requests: dict[str, dict] = {}  # request_id -> result envelope
+        self.started_at = time.time()
+        self.audit: deque = deque(maxlen=500)   # recent events for the Logs/Security views
+        self.record_audit("system", "boot", "AGNI platform online")
+
+    def record_audit(self, kind: str, event: str, detail: str = "", user: str = "") -> None:
+        self.audit.appendleft({"ts": time.time(), "kind": kind, "event": event,
+                               "detail": detail, "user": user})
+
+    def recent_audit(self, limit: int = 100) -> list[dict]:
+        return list(self.audit)[:limit]
 
     @classmethod
     async def create(cls, container: Container | None = None) -> "ApiService":
@@ -34,6 +46,8 @@ class ApiService:
         response = await self.king.run(request)
         envelope = response_to_dict(response)
         self._requests[envelope["request_id"]] = envelope
+        self.record_audit("chat", "request", objective[:120],
+                          user=str(user_id)[:8])
         return envelope
 
     async def stream_chat(self, objective: str, user_id: str) -> AsyncIterator[dict]:
