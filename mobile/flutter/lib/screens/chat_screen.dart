@@ -30,6 +30,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final AudioPlayer _player = AudioPlayer(); // plays ElevenLabs MP3 from the backend
   bool _listening = false;
   bool _voiceReplies = true;
+  bool _voiceQuery = false; // was the pending request asked by voice? only then speak the reply
   int _spoken = 0; // how many King replies we've already spoken
 
   @override
@@ -73,14 +74,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(() => _input.text = r.recognizedWords);
       if (r.finalResult && _input.text.trim().isNotEmpty) {
         setState(() => _listening = false);
-        _send();
+        _send(fromVoice: true);
       }
     });
   }
 
-  void _send() {
+  void _send({bool fromVoice = false}) {
     final text = _input.text.trim();
     if (text.isEmpty) return;
+    _voiceQuery = fromVoice; // only voice-initiated requests get spoken back
     ref.read(chatProvider.notifier).send(text);
     _input.clear();
   }
@@ -149,13 +151,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.listen(chatProvider, (prev, next) {
       final kings = next.messages.where((m) => m.sender == Sender.king).length;
       if (prev == null) {
-        _spoken = kings;
+        _spoken = kings; // never speak history restored on launch
         return;
       }
       if (kings > _spoken && !next.streaming) {
         _spoken = kings;
-        final last = next.messages.lastWhere((m) => m.sender == Sender.king);
-        _speak(last.text);
+        // Only speak the reply when the request was asked by voice — never for typed queries
+        // and never for restored history.
+        if (_voiceQuery && _voiceReplies) {
+          final last = next.messages.lastWhere((m) => m.sender == Sender.king);
+          _speak(last.text);
+        }
+        _voiceQuery = false;
       }
     });
 
@@ -219,7 +226,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(chat.streaming ? Icons.hourglass_empty : Icons.send_rounded,
                             color: BuddyColors.purple),
-                        onPressed: chat.streaming ? null : _send,
+                        onPressed: chat.streaming ? null : () => _send(),
                       ),
                     ),
                   ),
