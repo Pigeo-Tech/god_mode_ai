@@ -10,7 +10,9 @@ import '../core/media_player.dart';
 import '../models/chat.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../theme.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/waveform.dart';
 import 'agents_screen.dart';
 
 /// Buddy — the friendly user-facing AI chat bot. Buddy is not an agent: it takes the user's
@@ -160,10 +162,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 12,
-        title: Row(children: [
-          const CircleAvatar(radius: 14, child: Icon(Icons.smart_toy_rounded, size: 18)),
+        title: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+                gradient: BuddyColors.accent, shape: BoxShape.circle),
+            child: const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+          ),
           const SizedBox(width: 10),
-          const Text('Buddy'),
+          const Text('Talk to Buddy', style: TextStyle(fontWeight: FontWeight.w700)),
         ]),
         actions: [
           IconButton(
@@ -196,31 +204,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
           ),
           _miniPlayer(context),
+          if (_listening) const VoiceWaveform(active: true, height: 90),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
               child: Row(children: [
-                IconButton.filledTonal(
-                  onPressed: _toggleMic,
-                  isSelected: _listening,
-                  icon: Icon(_listening ? Icons.mic : Icons.mic_none_rounded),
-                  tooltip: _listening ? 'Listening… tap to stop' : 'Speak to Buddy',
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _input,
                     onSubmitted: (_) => _send(),
+                    style: const TextStyle(color: BuddyColors.text),
                     decoration: InputDecoration(
-                      hintText: _listening ? 'Listening…' : 'Ask Buddy anything…',
-                      border: const OutlineInputBorder(),
+                      hintText: _listening ? "I'm listening…" : 'Ask Buddy anything…',
+                      suffixIcon: IconButton(
+                        icon: Icon(chat.streaming ? Icons.hourglass_empty : Icons.send_rounded,
+                            color: BuddyColors.purple),
+                        onPressed: chat.streaming ? null : _send,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: chat.streaming ? null : _send,
-                  icon: const Icon(Icons.send),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _toggleMic,
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      gradient: BuddyColors.accent,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                            color: BuddyColors.purple.withOpacity(_listening ? .6 : .3),
+                            blurRadius: _listening ? 26 : 14),
+                      ],
+                    ),
+                    child: Icon(_listening ? Icons.stop_rounded : Icons.mic_rounded,
+                        color: Colors.white, size: 26),
+                  ),
                 ),
               ]),
             ),
@@ -230,21 +251,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _empty(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const CircleAvatar(radius: 30, child: Icon(Icons.smart_toy_rounded, size: 30)),
-            const SizedBox(height: 16),
-            Text('Hi, I\'m Buddy', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              'Talk or type, and I\'ll get it done. Try "play a Tamil song", '
-              '"what\'s the latest AI news", or "book a movie ticket".',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).hintColor),
+  Widget _empty(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: BuddyColors.accent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('Hey 👋',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             ),
-          ]),
+            const SizedBox(height: 20),
+            const Text('What can I', style: TextStyle(fontSize: 26, color: BuddyColors.muted)),
+            const Text('help you with?',
+                style: TextStyle(
+                    fontSize: 28, fontWeight: FontWeight.w800, color: BuddyColors.text)),
+            const SizedBox(height: 26),
+            VoiceWaveform(active: _listening, height: 120),
+            const SizedBox(height: 26),
+            Text(
+              'Tap the mic or type. Try "play a Tamil song", '
+              '"latest AI news", or "book a movie ticket".',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: BuddyColors.muted),
+            ),
+          ],
         ),
       );
 }
