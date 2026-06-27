@@ -29,5 +29,11 @@ grep -q "com.ryanheise.audioservice.AudioService" "$M" || sed -i \
 # 3) App name
 sed -i 's#android:label="god_mode_ai"#android:label="Buddy"#' "$M"
 
-echo "AndroidManifest patched. Permissions + audio service added."
-grep -E "uses-permission|AudioService|android:label" "$M"
+# 4) Register Buddy as a device "assist" app, so it can be set as the digital assistant
+#    (long-press side button / assist gesture opens Buddy instead of the default assistant).
+grep -q "android.intent.action.ASSIST" "$M" || sed -i \
+  's#<category android:name="android.intent.category.LAUNCHER"/>#<category android:name="android.intent.category.LAUNCHER"/>\n            </intent-filter>\n            <intent-filter>\n                <action android:name="android.intent.action.ASSIST"/>\n                <category android:name="android.intent.category.DEFAULT"/>#' \
+  "$M"
+
+echo "AndroidManifest patched. Permissions + audio service + assist hook added."
+grep -E "uses-permission|AudioService|ASSIST|android:label" "$M"
