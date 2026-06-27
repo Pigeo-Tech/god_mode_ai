@@ -39,7 +39,7 @@ class TtsRequest(BaseModel):
     text: str
 
 
-def _synthesize(text: str) -> bytes:
+def _elevenlabs(text: str) -> bytes:
     key = os.getenv("ELEVENLABS_API_KEY")
     if not key:
         raise HTTPException(503, "voice not configured")
@@ -58,6 +58,31 @@ def _synthesize(text: str) -> bytes:
         return resp.read()
 
 
+def _piper(text: str) -> bytes:
+    """Call our OWN self-hosted Piper voice engine (no third party). Returns WAV bytes."""
+    url = os.getenv("PIPER_URL")
+    if not url:
+        raise HTTPException(503, "voice not configured")
+    payload = json.dumps({"text": text[:2000]}).encode("utf-8")
+    req = urllib.request.Request(url.rstrip("/") + "/tts", data=payload, method="POST",
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=40) as resp:
+        return resp.read()
+
+
+def _synthesize(text: str) -> tuple[bytes, str]:
+    """Pick the voice engine. TTS_ENGINE=piper uses our self-hosted engine; otherwise ElevenLabs.
+    Returns (audio_bytes, media_type)."""
+    engine = os.getenv("TTS_ENGINE", "").lower()
+    piper_on = bool(os.getenv("PIPER_URL"))
+    eleven_on = bool(os.getenv("ELEVENLABS_API_KEY"))
+    if engine == "piper" or (piper_on and not eleven_on):
+        return _piper(text), "audio/wav"
+    if eleven_on:
+        return _elevenlabs(text), "audio/mpeg"
+    raise HTTPException(503, "voice not configured")
+
+
 @router.post("/tts")
 def tts(body: TtsRequest, principal=Depends(get_principal)):
     """Synthesize speech for the given text. Sync handler → runs in a threadpool."""
@@ -65,12 +90,12 @@ def tts(body: TtsRequest, principal=Depends(get_principal)):
     if not text:
         raise HTTPException(400, "text required")
     try:
-        audio = _synthesize(text)
+        audio, media = _synthesize(text)
     except HTTPException:
         raise
-    except Exception as exc:  # network / ElevenLabs error — client falls back to device TTS
+    except Exception as exc:  # network / engine error — client falls back to device TTS
         raise HTTPException(502, f"tts failed: {exc}")
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=audio, media_type=media)
 
 
 @router.get("/voices/available")

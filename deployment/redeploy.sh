@@ -15,6 +15,9 @@ JWT="$(docker exec agni printenv JWT_SECRET 2>/dev/null || true)"
 # ElevenLabs voice (Buddy) — reused if already set.
 ELEVEN="$(docker exec agni printenv ELEVENLABS_API_KEY 2>/dev/null || true)"
 ELVOICE="$(docker exec agni printenv ELEVENLABS_VOICE_ID 2>/dev/null || true)"
+# Own voice engine (Piper) — reused if already set.
+TTS_ENGINE_V="$(docker exec agni printenv TTS_ENGINE 2>/dev/null || true)"
+PIPER_URL_V="$(docker exec agni printenv PIPER_URL 2>/dev/null || true)"
 # External Skills API (Option 2) — reused if already set.
 SK_URL="$(docker exec agni printenv SKILLS_API_URL 2>/dev/null || true)"
 SK_KEY="$(docker exec agni printenv SKILLS_API_KEY 2>/dev/null || true)"
@@ -41,6 +44,8 @@ docker run -d --name agni --restart unless-stopped -p 8000:8000 \
   ${SK_AUTH:+-e SKILLS_API_AUTH="$SK_AUTH"} \
   ${SK_METHOD:+-e SKILLS_API_METHOD="$SK_METHOD"} \
   ${SK_FIELD:+-e SKILLS_API_FIELD="$SK_FIELD"} \
+  ${TTS_ENGINE_V:+-e TTS_ENGINE="$TTS_ENGINE_V"} \
+  ${PIPER_URL_V:+-e PIPER_URL="$PIPER_URL_V"} \
   -v /opt/app/backend/skills:/app/backend/skills \
   agni-api \
   uvicorn backend.api.main:app --host 0.0.0.0 --port 8000

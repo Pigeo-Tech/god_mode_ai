@@ -264,9 +264,13 @@ async def apikeys(_=Depends(get_principal), service=Depends(get_service)):
             "tool": tool, "label": label, "model": model, "priority": prio,
             "free": free, "configured": configured, "registered": tool in registered,
         })
+    _engine = "piper (self-hosted)" if (os.getenv("TTS_ENGINE", "").lower() == "piper"
+                                        or os.getenv("PIPER_URL")) else (
+        "elevenlabs" if os.getenv("ELEVENLABS_API_KEY") else "device fallback")
     extras = {
         "web.search (Tavily)": bool(os.getenv("TAVILY_API_KEY")),
-        "voice (ElevenLabs)": bool(os.getenv("ELEVENLABS_API_KEY")),
+        f"voice engine = {_engine}": (os.getenv("TTS_ENGINE", "").lower() == "piper"
+                                      or bool(os.getenv("ELEVENLABS_API_KEY"))),
         "skills.invoke (Skills API)": bool(os.getenv("SKILLS_API_URL")),
     }
     return {"providers": providers, "services": extras,
