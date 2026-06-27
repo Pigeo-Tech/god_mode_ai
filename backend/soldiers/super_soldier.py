@@ -14,6 +14,7 @@ below the profile threshold — so ordinary requests cost the same as before.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from time import perf_counter
@@ -23,7 +24,8 @@ from backend.core.skill_registry import SKILLS
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
 from backend.soldiers.common import (build_action_link, is_play_intent, needs_live_info,
-                                     resolve_play_url, skills_context, web_context)
+                                     resolve_play_url, resolve_youtube, skills_context,
+                                     web_context)
 
 
 @dataclass
@@ -229,6 +231,101 @@ class ResearchSoldier(SuperSoldier):
 
 
 # --------------------------------------------------------------------------- domain experts
+# --------------------------------------------------------------------------- MEDIA agent
+class MediaSoldier(SuperSoldier):
+    """MEDIA — AGNI's entertainment agent.
+
+    Understands rich media intent (music / movies / trailers / videos / podcasts), disambiguates
+    ("which Vijay movie?"), and resolves a play request to a DIRECT, auto-playing YouTube watch
+    URL — or asks the user to choose when it's ambiguous. Info / recommendation questions fall
+    through to the normal expert pipeline. One model call (the plan) + one web search (on play).
+    """
+
+    profile = ExpertiseProfile(
+        domain="media",
+        system_prompt=("You are MEDIA, a friendly entertainment expert. Recommend and explain "
+                       "music, movies, shows, trailers and podcasts. Be concise."))
+
+    _ACT = ("play", "watch", "listen", "stream", "trailer", "song", "music", "movie",
+            "video", "podcast", "album", "playlist")
+
+    _PLAN_PROMPT = (
+        "You are MEDIA, AGNI's entertainment agent. The user wants to play or find media.\n"
+        "Decide ONE action:\n"
+        '- "play": you can identify a specific thing to play. Give a precise YouTube search '
+        "query (song/movie + artist/actor + 'official' or 'trailer' as needed).\n"
+        '- "ask": the request is ambiguous (names an actor, genre or mood but not a specific '
+        "title). Give 2-4 specific options to choose from.\n"
+        "Return ONLY strict JSON, nothing else:\n"
+        '{"action":"play"|"ask","media_type":"music|movie|trailer|video|podcast",'
+        '"title":"<short human title>","query":"<exact youtube search query>",'
+        '"options":["opt1","opt2"],"reply":"<one short friendly sentence>"}\n'
+        "User request: ")
+
+    async def work(self, request: AgentRequest) -> AgentResponse:
+        low = (request.objective or "").lower()
+        words = set(re.findall(r"[a-z0-9]+", low))
+        is_question = "?" in (request.objective or "") and "play" not in words
+        if not (words & set(self._ACT)) or is_question:
+            return await super().work(request)  # info/recommendation -> expert pipeline
+        return await self._media_action(request)
+
+    async def _media_action(self, request: AgentRequest) -> AgentResponse:
+        t0 = perf_counter()
+        plan = await self._media_plan(request)
+        if not plan:
+            return await super().work(request)
+        reply = (plan.get("reply") or "").strip()
+
+        if plan.get("action") == "ask" and plan.get("options"):
+            opts = [str(o) for o in plan["options"]][:4]
+            summary = (reply or "Which one would you like?") + "\n" + \
+                "\n".join("- " + o for o in opts)
+            self._metric({"ok": True, "confidence": 0.8}, False, perf_counter() - t0)
+            return self._ok(request, {
+                "answer": summary, "findings": summary, "domain": "media",
+                "provider": "media", "model": plan.get("_model"), "confidence": 0.8,
+                "action": None, "requires_clarification": True, "options": opts,
+                "media_type": plan.get("media_type"),
+                "plan": ["understand", "disambiguate", "await_choice"],
+                "stages": {"recalled": 0, "recovered": False, "validated": True}})
+
+        query = (plan.get("query") or request.objective or "").strip()
+        watch = await resolve_youtube(self.deps.tools, query, self.agent_id)
+        if watch:
+            url, label = watch, "Play on YouTube"
+        else:
+            url, label = ("https://www.youtube.com/results?search_query=" + quote_plus(query),
+                          "Search YouTube")
+        title = plan.get("title") or query
+        summary = reply or ("Playing " + title)
+        self._metric({"ok": True, "confidence": 0.85}, False, perf_counter() - t0)
+        return self._ok(request, {
+            "answer": summary, "findings": summary, "domain": "media", "provider": "media",
+            "model": plan.get("_model"), "confidence": 0.85,
+            "action": {"type": "open_url", "url": url, "label": label},
+            "media_type": plan.get("media_type"), "title": title,
+            "plan": ["understand", "resolve", "play"],
+            "stages": {"recalled": 0, "recovered": False, "validated": True}})
+
+    async def _media_plan(self, request: AgentRequest) -> dict | None:
+        tool = self._pick_model()
+        prompt = self._PLAN_PROMPT + '"' + (request.objective or "")[:300] + '"'
+        try:
+            raw = await self.deps.tools.invoke(tool, {"prompt": prompt}, agent_id=self.agent_id)
+        except Exception:
+            return None
+        m = re.search(r"\{.*\}", (raw.get("completion") or ""), re.DOTALL)
+        if not m:
+            return None
+        try:
+            data = json.loads(m.group(0))
+        except Exception:
+            return None
+        data["_model"] = raw.get("model")
+        return data
+
+
 # One ExpertiseProfile per General's domain. Every soldier in a domain inherits its profile,
 # turning all 145 soldiers into specialised experts that share the single pipeline above.
 DOMAIN_PROFILES: dict[str, ExpertiseProfile] = {

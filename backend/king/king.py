@@ -37,6 +37,8 @@ def _default_planner() -> Planner:
         "remember": "memory", "recall": "memory",
         "code": "coding", "program": "coding", "bug": "coding", "git": "coding",
         "image": "media", "video": "media", "music": "media", "speech": "media",
+        "play": "media", "song": "media", "listen": "media", "podcast": "media",
+        "playlist": "media", "album": "media",
         "stock": "finance", "crypto": "finance", "price": "finance", "budget": "finance",
         "email": "communication", "message": "communication", "notify": "communication",
         "file": "system", "docker": "system", "aws": "system", "terminal": "system",

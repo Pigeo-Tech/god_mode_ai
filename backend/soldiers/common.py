@@ -90,6 +90,23 @@ async def resolve_play_url(tools, objective: str, agent_id: str) -> str | None:
     return f"https://www.youtube.com/watch?v={m.group(1)}" if m else None
 
 
+async def resolve_youtube(tools, query: str, agent_id: str) -> str | None:
+    """Find a directly-playable YouTube watch URL for an explicit search query (auto-plays)."""
+    available = tools.list() if tools is not None else []
+    if "web.search" not in (available or []) or not (query or "").strip():
+        return None
+    try:
+        res = await tools.invoke("web.search", {"query": query + " youtube", "max_results": 6},
+                                 agent_id=agent_id)
+    except Exception:  # pragma: no cover - best-effort
+        return None
+    blob = str((res or {}).get("answer") or "")
+    for r in ((res or {}).get("results") or []):
+        blob += " " + str(r.get("url") or "") + " " + str(r.get("content") or "")
+    m = _YT_WATCH.search(blob)
+    return f"https://www.youtube.com/watch?v={m.group(1)}" if m else None
+
+
 # Signals that a request needs *current* information (so we should hit live web search).
 _LIVE_SIGNALS = (
     "new", "latest", "today", "tonight", "tomorrow", "current", "currently", "now", "price",

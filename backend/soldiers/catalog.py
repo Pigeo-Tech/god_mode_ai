@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.soldiers.common import LlmSoldier, MemorySoldier
-from backend.soldiers.super_soldier import MoviePlannerSoldier, ResearchSoldier
+from backend.soldiers.super_soldier import MediaSoldier, MoviePlannerSoldier, ResearchSoldier
 
 
 @dataclass
@@ -51,9 +51,9 @@ SOLDIER_CATALOG: list[SoldierSpec] = [
     SoldierSpec("testing", "coding"),
     SoldierSpec("deployment", "coding"),
     SoldierSpec("image", "media"),
-    SoldierSpec("video", "media"),
-    SoldierSpec("audio", "media"),
-    SoldierSpec("music", "media", cls=LlmSoldier),
+    SoldierSpec("video", "media", cls=MediaSoldier),
+    SoldierSpec("audio", "media", cls=MediaSoldier),
+    SoldierSpec("music", "media", cls=MediaSoldier),
     SoldierSpec("speech", "media"),
     SoldierSpec("vision", "media"),
     SoldierSpec("camera", "media"),
