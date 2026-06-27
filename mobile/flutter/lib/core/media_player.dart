@@ -9,12 +9,15 @@ class BuddyPlayer {
   BuddyPlayer._();
   static final BuddyPlayer instance = BuddyPlayer._();
 
-  final AudioPlayer player = AudioPlayer();
-  final YoutubeExplode _yt = YoutubeExplode();
+  // Created lazily on first playback so nothing can crash the app at startup / on the chat screen.
+  AudioPlayer? _player;
+  YoutubeExplode? _ytClient;
+  AudioPlayer get player => _player ??= AudioPlayer();
+  YoutubeExplode get _yt => _ytClient ??= YoutubeExplode();
   String? nowPlaying;
 
-  Stream<bool> get playingStream => player.playingStream;
-  bool get isPlaying => player.playing;
+  Stream<bool> get playingStream => _player?.playingStream ?? const Stream<bool>.empty();
+  bool get isPlaying => _player?.playing ?? false;
 
   /// Resolve [videoId] to an audio stream and start playback (shows lock-screen controls).
   Future<void> playYouTube(String videoId, {String title = 'Now Playing'}) async {
@@ -41,6 +44,6 @@ class BuddyPlayer {
   Future<void> toggle() => player.playing ? player.pause() : player.play();
   Future<void> stop() async {
     nowPlaying = null;
-    await player.stop();
+    await _player?.stop();
   }
 }

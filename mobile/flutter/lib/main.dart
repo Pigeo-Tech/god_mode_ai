@@ -9,10 +9,13 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ServerConfig.load();
   // Background music + lock-screen / notification controls for Buddy's in-app player.
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.agni.buddy.audio',
-    androidNotificationChannelName: 'Buddy Playback',
-    androidNotificationOngoing: true,
-  );
+  // Non-fatal: if the audio service isn't available the app must still start (no black screen).
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.agni.buddy.audio',
+      androidNotificationChannelName: 'Buddy Playback',
+      androidNotificationOngoing: true,
+    );
+  } catch (_) {/* background audio unavailable — app continues, player falls back */}
   runApp(const ProviderScope(child: GodModeApp()));
 }
