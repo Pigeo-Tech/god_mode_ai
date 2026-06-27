@@ -20,6 +20,9 @@ dependencies:
   speech_to_text: ^7.0.0         # Buddy voice input (mic -> text)
   flutter_tts: ^4.2.0            # Buddy voice output fallback (device TTS)
   audioplayers: ^6.1.0          # play ElevenLabs MP3 voice from the backend
+  just_audio: ^0.9.40                  # in-app music player engine
+  just_audio_background: ^0.0.1-beta.13 # background + lock-screen / notification controls
+  youtube_explode_dart: ^2.3.0         # resolve a playable audio stream for a song
   intl: ^0.19.0
 
 dev_dependencies:

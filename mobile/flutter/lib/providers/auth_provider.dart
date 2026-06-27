@@ -27,12 +27,23 @@ class AuthController extends StateNotifier<AuthState> {
   final ApiClient _api;
   final SecureTokenStore _store;
 
-  AuthController(this._api, this._store) : super(const AuthState());
+  AuthController(this._api, this._store) : super(const AuthState()) {
+    // Persist any silently-refreshed access token so the session never visibly expires.
+    _api.onTokens = (t) {
+      final merged = AuthTokens(
+        accessToken: t.accessToken,
+        refreshToken: t.refreshToken ?? state.tokens?.refreshToken,
+        userId: state.tokens?.userId ?? '',
+      );
+      _store.save(merged);
+      state = state.copyWith(tokens: merged);
+    };
+  }
 
   Future<void> restore() async {
     final saved = await _store.read();
     if (saved != null) {
-      _api.setToken(saved.accessToken);
+      _api.setTokens(saved);
       state = state.copyWith(tokens: saved);
     }
   }

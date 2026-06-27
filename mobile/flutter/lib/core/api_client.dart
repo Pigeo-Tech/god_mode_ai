@@ -18,10 +18,20 @@ class ApiException implements Exception {
 class ApiClient {
   final http.Client _http;
   String? _accessToken;
+  String? _refreshToken;
+
+  /// Called when a refreshed access token is obtained, so it can be persisted.
+  void Function(AuthTokens tokens)? onTokens;
 
   ApiClient([http.Client? client]) : _http = client ?? http.Client();
 
   void setToken(String? token) => _accessToken = token;
+
+  /// Set both tokens (so the client can silently refresh an expired access token).
+  void setTokens(AuthTokens t) {
+    _accessToken = t.accessToken;
+    _refreshToken = t.refreshToken;
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -39,6 +49,33 @@ class ApiClient {
     return body;
   }
 
+  /// Use the refresh token to get a new access token. Returns true on success.
+  Future<bool> _refresh() async {
+    if (_refreshToken == null) return false;
+    try {
+      final r = await _http.post(_uri('/v1/auth/refresh'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refresh_token': _refreshToken}));
+      if (r.statusCode != 200) return false;
+      final j = jsonDecode(r.body) as Map<String, dynamic>;
+      _accessToken = j['access_token'] as String;
+      onTokens?.call(AuthTokens(
+          accessToken: _accessToken!, refreshToken: _refreshToken, userId: ''));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Run an authed request; if the token has expired (401), refresh once and retry.
+  Future<http.Response> _send(Future<http.Response> Function() build) async {
+    var r = await build();
+    if (r.statusCode == 401 && await _refresh()) {
+      r = await build();
+    }
+    return r;
+  }
+
   Future<void> register(String email, String password) async {
     final r = await _http.post(_uri('/v1/auth/register'),
         headers: _headers, body: jsonEncode({'email': email, 'password': password}));
@@ -50,14 +87,14 @@ class ApiClient {
         headers: _headers, body: jsonEncode({'email': email, 'password': password}));
     final json = await _decode(r) as Map<String, dynamic>;
     final tokens = AuthTokens.fromJson(json);
-    setToken(tokens.accessToken);
+    setTokens(tokens);
     return tokens;
   }
 
-  /// Non-streaming chat (single response).
+  /// Non-streaming chat (single response). Auto-refreshes the token on expiry.
   Future<Map<String, dynamic>> chat(String message) async {
-    final r = await _http.post(_uri('/v1/chat'),
-        headers: _headers, body: jsonEncode({'message': message, 'stream': false}));
+    final r = await _send(() => _http.post(_uri('/v1/chat'),
+        headers: _headers, body: jsonEncode({'message': message, 'stream': false})));
     return await _decode(r) as Map<String, dynamic>;
   }
 
@@ -73,7 +110,7 @@ class ApiClient {
   }
 
   Future<List<AgentInfo>> agents() async {
-    final r = await _http.get(_uri('/v1/agents'), headers: _headers);
+    final r = await _send(() => _http.get(_uri('/v1/agents'), headers: _headers));
     final json = await _decode(r) as Map<String, dynamic>;
     final list = (json['agents'] as List<dynamic>);
     return list.map((e) => AgentInfo.fromJson(e as Map<String, dynamic>)).toList();

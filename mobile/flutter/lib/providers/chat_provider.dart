@@ -1,24 +1,37 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/media_player.dart';
 import '../core/offline_store.dart';
 import '../core/ws_client.dart';
 import '../models/chat.dart';
 import 'auth_provider.dart';
 
-/// Opens an action URL (YouTube, Maps, Play Store, ...) directly in the relevant app.
+final _ytWatch = RegExp(r'(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{11})');
+
+/// Performs the King's action. A "play a song" result (a YouTube watch URL) plays IN-APP with
+/// background + lock-screen controls. Everything else opens the relevant app/page directly.
 Future<void> _runAction(Map<String, dynamic>? result) async {
   final action = result?['action'];
   if (action is! Map) return;
   final url = action['url'];
   if (url is! String || url.isEmpty) return;
+
+  // Music? Play it inside Buddy instead of bouncing to the YouTube app.
+  final m = _ytWatch.firstMatch(url);
+  if (m != null) {
+    final title = (result?['title'] ?? result?['summary'] ?? 'Now Playing').toString();
+    try {
+      await BuddyPlayer.instance.playYouTube(m.group(1)!, title: title);
+      return;
+    } catch (_) {/* extraction failed -> fall back to opening the link */}
+  }
+
   final uri = Uri.tryParse(url);
   if (uri == null) return;
   try {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } catch (_) {
-    // best-effort: if no handler, the link still shows in the reply text
-  }
+  } catch (_) {/* best-effort */}
 }
 
 final wsClientProvider = Provider<WsClient>((ref) => WsClient());

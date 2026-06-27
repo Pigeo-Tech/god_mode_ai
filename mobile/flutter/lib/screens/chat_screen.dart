@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../core/media_player.dart';
 import '../models/chat.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -82,6 +83,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _input.clear();
   }
 
+  /// Now-playing bar with play/pause + stop, shown while Buddy is playing music.
+  Widget _miniPlayer(BuildContext context) {
+    final p = BuddyPlayer.instance;
+    return StreamBuilder<bool>(
+      stream: p.playingStream,
+      builder: (context, snap) {
+        if (p.nowPlaying == null) return const SizedBox.shrink();
+        final playing = snap.data ?? p.isPlaying;
+        return Material(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Row(children: [
+              const Icon(Icons.music_note_rounded, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(p.nowPlaying!,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              IconButton(
+                icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                onPressed: () => p.toggle(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.stop_rounded),
+                onPressed: () async {
+                  await p.stop();
+                  if (mounted) setState(() {});
+                },
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _speak(String text) async {
     if (!_voiceReplies) return;
     final clean = text.replaceAll(RegExp(r'https?://\S+'), '').trim();
@@ -156,6 +195,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     itemBuilder: (_, i) => MessageBubble(message: chat.messages[i]),
                   ),
           ),
+          _miniPlayer(context),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(8),

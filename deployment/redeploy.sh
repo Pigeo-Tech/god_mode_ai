@@ -12,6 +12,9 @@ NVIDIA="$(docker exec agni printenv NVIDIA_API_KEY 2>/dev/null || true)"
 # Reuse the existing JWT secret so redeploys DON'T log everyone out (sessions stay valid).
 JWT="$(docker exec agni printenv JWT_SECRET 2>/dev/null || true)"
 [ -z "$JWT" ] && JWT="$(openssl rand -hex 24)"
+# Long-lived tokens (1 year) so the mobile app doesn't keep hitting "token expired".
+TTL="$(docker exec agni printenv ACCESS_TOKEN_EXPIRE_MINUTES 2>/dev/null || true)"
+[ -z "$TTL" ] && TTL="525600"
 # ElevenLabs voice (Buddy) — reused if already set.
 ELEVEN="$(docker exec agni printenv ELEVENLABS_API_KEY 2>/dev/null || true)"
 ELVOICE="$(docker exec agni printenv ELEVENLABS_VOICE_ID 2>/dev/null || true)"
@@ -33,7 +36,7 @@ mkdir -p /opt/app/backend/skills
 chown -R 999:999 /opt/app/backend/skills 2>/dev/null || chmod -R 777 /opt/app/backend/skills
 docker run -d --name agni --restart unless-stopped -p 8000:8000 \
   -e USE_IN_MEMORY_BACKENDS=true -e WAIT_FOR_DEPS=false \
-  -e JWT_SECRET="$JWT" \
+  -e JWT_SECRET="$JWT" -e ACCESS_TOKEN_EXPIRE_MINUTES="$TTL" \
   -e OPENAI_API_KEY="$OPENAI" \
   -e TAVILY_API_KEY="$TAVILY" \
   -e NVIDIA_API_KEY="$NVIDIA" \
