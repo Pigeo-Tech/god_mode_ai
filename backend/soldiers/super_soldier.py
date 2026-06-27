@@ -251,11 +251,13 @@ class MediaSoldier(SuperSoldier):
 
     _PLAN_PROMPT = (
         "You are MEDIA, AGNI's entertainment agent. The user wants to play or find media.\n"
-        "Decide ONE action:\n"
-        '- "play": you can identify a specific thing to play. Give a precise YouTube search '
-        "query (song/movie + artist/actor + 'official' or 'trailer' as needed).\n"
-        '- "ask": the request is ambiguous (names an actor, genre or mood but not a specific '
-        "title). Give 2-4 specific options to choose from.\n"
+        "DEFAULT to action=play: pick the single most popular/representative match and give a "
+        "precise YouTube query.\n"
+        "For a genre, language, mood, decade or 'songs of <artist>' (e.g. 'tamil song', 'lofi', "
+        "'90s songs', 'romantic', 'Arijit Singh songs') -> PLAY the most popular hit, do NOT ask.\n"
+        "Use action=ask ONLY when the user names a specific actor/franchise and a 'movie'/'film' "
+        "without saying which one (e.g. 'play Vijay movie' -> ask which movie), giving 2-4 real "
+        "title options.\n"
         "Return ONLY strict JSON, nothing else:\n"
         '{"action":"play"|"ask","media_type":"music|movie|trailer|video|podcast",'
         '"title":"<short human title>","query":"<exact youtube search query>",'
