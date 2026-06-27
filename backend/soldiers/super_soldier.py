@@ -22,8 +22,8 @@ from urllib.parse import quote_plus
 from backend.core.skill_registry import SKILLS
 from backend.schemas.agent import AgentRequest, AgentResponse
 from backend.soldiers.base.base_soldier import BaseSoldier
-from backend.soldiers.common import (build_action_link, needs_live_info, skills_context,
-                                     web_context)
+from backend.soldiers.common import (build_action_link, is_play_intent, needs_live_info,
+                                     resolve_play_url, skills_context, web_context)
 
 
 @dataclass
@@ -67,6 +67,12 @@ class SuperSoldier(BaseSoldier):
 
         # Actionable request? Answer concisely (one line) and let the app auto-open the action.
         url, label = build_action_link(request.objective)
+        # "Play a song" → upgrade the YouTube *search* link to a direct *watch* URL that
+        # auto-plays in the YouTube app (resolved live via web search).
+        if url and "youtube.com/results" in url and is_play_intent(request.objective):
+            watch = await resolve_play_url(self.deps.tools, request.objective, self.agent_id)
+            if watch:
+                url, label = watch, "Play on YouTube"
         override = self.ACTION_PROMPT if url else ""
 
         raw = await self._reason(request, recalled, system_override=override)

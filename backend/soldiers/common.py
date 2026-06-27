@@ -55,6 +55,41 @@ def build_action_link(objective: str) -> tuple[str | None, str | None]:
     return f"https://www.google.com/search?q={q}", "Search the web"
 
 
+_PLAY_SIGNALS = ("song", "music", "play", "listen", "stream", "watch")
+_YT_WATCH = re.compile(r"(?:youtube\.com/watch\?v=|youtu\.be/)([A-Za-z0-9_-]{11})")
+
+
+def is_play_intent(objective: str) -> bool:
+    low = (objective or "").lower()
+    words = set(re.findall(r"[a-z0-9]+", low))
+    return ("play" in words or any(k in low for k in ("song", "music"))) \
+        and bool(words & _PLAY_SIGNALS)
+
+
+async def resolve_play_url(tools, objective: str, agent_id: str) -> str | None:
+    """Turn a 'play <song>' request into a DIRECT YouTube watch URL that auto-plays.
+
+    Uses the live web-search tool to find the top matching video and returns its watch URL.
+    Returns None when search isn't available or no video is found (caller keeps the search URL).
+    """
+    available = tools.list() if tools is not None else []
+    if "web.search" not in (available or []):
+        return None
+    words = re.findall(r"[a-z0-9]+", (objective or "").lower())
+    term = " ".join(w for w in words if w not in _STOP and w not in _ACTION_VERBS).strip()
+    query = (term or "popular song") + " song official youtube video"
+    try:
+        res = await tools.invoke("web.search", {"query": query, "max_results": 6},
+                                 agent_id=agent_id)
+    except Exception:  # pragma: no cover - best-effort
+        return None
+    blob = str((res or {}).get("answer") or "")
+    for r in ((res or {}).get("results") or []):
+        blob += " " + str(r.get("url") or "") + " " + str(r.get("content") or "")
+    m = _YT_WATCH.search(blob)
+    return f"https://www.youtube.com/watch?v={m.group(1)}" if m else None
+
+
 # Signals that a request needs *current* information (so we should hit live web search).
 _LIVE_SIGNALS = (
     "new", "latest", "today", "tonight", "tomorrow", "current", "currently", "now", "price",
